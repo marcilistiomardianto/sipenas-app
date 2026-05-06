@@ -1347,7 +1347,7 @@
                 }
 
                 if (currentUser.role === 'user' && !['users', 'logs', 'system_settings', 'announcements'].includes(tableName)) {
-                    if (!currentUser.sekolah_id) return []; // [PERBAIKAN] Tahan fetch jika belum punya ID
+                    if (!currentUser.sekolah_id) return []; // Tahan fetch jika belum punya ID
                     if(tableName === 'schools') data = data.filter(d => String(d.id) === String(currentUser.sekolah_id));
                     else data = data.filter(d => String(d.sekolah_id) === String(currentUser.sekolah_id));
                 } 
@@ -1362,7 +1362,7 @@
                 }
                 
                 if (tableName === 'pesan' && currentUser.role === 'user') {
-                    if (!currentUser.sekolah_id) return []; // [PERBAIKAN]
+                    if (!currentUser.sekolah_id) return []; 
                     data = data.filter(d => String(d.sekolah_id) === String(currentUser.sekolah_id));
                 }
                 return Array.isArray(data) ? [...data] : (typeof data === 'object' ? [data] : []);
@@ -1374,7 +1374,7 @@
                 }
 
                 if (currentUser.role === 'user' && !['users', 'logs', 'system_settings', 'announcements'].includes(tableName)) {
-                    if (!currentUser.sekolah_id) return []; // [PERBAIKAN] Tahan fetch jika belum punya ID
+                    if (!currentUser.sekolah_id) return []; // Tahan fetch jika belum punya ID
 
                     if(tableName === 'schools') query = query.eq('id', currentUser.sekolah_id);
                     else query = query.eq('sekolah_id', currentUser.sekolah_id);
@@ -1394,7 +1394,7 @@
                 }
 
                 if (tableName === 'pesan' && currentUser.role === 'user') {
-                    if (!currentUser.sekolah_id) return []; // [PERBAIKAN]
+                    if (!currentUser.sekolah_id) return []; 
                     query = query.eq('sekolah_id', currentUser.sekolah_id);
                 }
                 if(tableName === 'logs') query = query.order('id', { ascending: false });
@@ -2037,20 +2037,28 @@
                     if (editingId) {
                         result = await supabaseClient.from(schema.table).update(payload).eq('id', editingId);
                     } else {
-                        // [PERBAIKAN] TAMBAHKAN .select() UNTUK MENGAMBIL ID YANG BARU SAJA DIGENERATE
                         result = await supabaseClient.from(schema.table).insert([payload]).select();
                     }
                     
                     if (result.error) throw result.error;
 
-                    // [PERBAIKAN AUTO-LINK DI MODE PRODUKSI SUPABASE]
-                    if (!editingId && schema.table === 'schools' && currentUser.role === 'user' && result.data && result.data.length > 0) {
-                        const newSchoolId = result.data[0].id;
-                        // 1. Simpan di sesi lokal pengguna saat ini
-                        currentUser.sekolah_id = newSchoolId;
-                        localStorage.setItem('sipas_user', JSON.stringify(currentUser));
-                        // 2. Simpan kembali ID Sekolah tersebut ke tabel 'users' untuk permanen
-                        await supabaseClient.from('users').update({ sekolah_id: newSchoolId }).eq('id', currentUser.id);
+                    // [PERBAIKAN AUTO-LINK BERDASARKAN NPSN] 
+                    if (!editingId && schema.table === 'schools' && currentUser.role === 'user') {
+                        try {
+                            // Mencari kembali ke database berdasarkan data NPSN (karena NPSN diwajibkan unik)
+                            // Ini menggaransi kita menangkap ID yang baru saja digenerate oleh Supabase
+                            const { data: newSchool } = await supabaseClient.from('schools').select('id').eq('npsn', payload.npsn).single();
+                            if (newSchool && newSchool.id) {
+                                const newSchoolId = newSchool.id;
+                                // Simpan ke memori user yg sedang aktif
+                                currentUser.sekolah_id = newSchoolId;
+                                localStorage.setItem('sipas_user', JSON.stringify(currentUser));
+                                // Tautkan dan simpan secara permanen ke tabel User
+                                await supabaseClient.from('users').update({ sekolah_id: newSchoolId }).eq('id', currentUser.id);
+                            }
+                        } catch (err) {
+                            console.error("Auto-link error:", err);
+                        }
                     }
                     
                     logActivity(`${editingId ? 'Mengubah' : 'Menambahkan'} data di tabel ${schema.title}`);
