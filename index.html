@@ -183,12 +183,10 @@
                     <h2 class="text-lg md:text-xl font-semibold text-gray-800" id="page-title">Dashboard Utama</h2>
                 </div>
                 <div class="flex items-center gap-4">
-                    <!-- Notification Bell untuk Pesan Internal -->
                     <button onclick="loadPage('pesan')" class="relative text-gray-500 hover:text-dinas-800 transition mr-2">
                         <i class="fa-solid fa-bell text-xl"></i>
                         <span id="notif-badge" class="hidden absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border-2 border-white">0</span>
                     </button>
-                    
                     <div id="header-system-status" class="hidden md:block"></div>
                     <div class="text-sm text-gray-500 hidden md:block border-l pl-4" id="current-date"></div>
                 </div>
@@ -228,16 +226,14 @@
         // ==========================================
         // 1. KONFIGURASI SUPABASE & AUTHENTICATION
         // ==========================================
-        // UNTUK PRODUKSI: Ganti URL dan Key ini dengan yang ada di Dashboard Supabase Anda
-        const SUPABASE_URL = 'https://ruvqyojeftgllbisknff.supabase.co';
-        const SUPABASE_ANON_KEY = 'sb_publishable_Y8-l3DWcKU2BEdpJ99u_fw_WDS60ylw';
+        const SUPABASE_URL = 'https://YOUR_PROJECT_ID.supabase.co';
+        const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';
         
         let supabaseClient = null;
         const useMockData = SUPABASE_URL.includes('YOUR_PROJECT_ID');
         
         if (!useMockData) {
             supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-            // Sesuaikan UI jika berjalan di mode Produksi
             document.getElementById('login-label').textContent = 'Email Pengguna';
             document.getElementById('username').placeholder = 'sekolah@domain.com';
             document.getElementById('mock-login-helper').classList.add('hidden');
@@ -246,7 +242,7 @@
         // ==========================================
         // 2. STATE MANAGEMENT & MOCK DATA
         // ==========================================
-        let currentUser = null; // Diisi saat initAuth()
+        let currentUser = null; 
         let currentMenu = 'dashboard';
         let currentTableData = [];
         let filteredTableData = []; 
@@ -259,12 +255,11 @@
         let mapInstance = null; 
         let appSettings = { periode: '2026/2027 Ganjil', is_locked: false }; 
         let idleTime = 0;
-        const IDLE_LIMIT = 30; // 30 Menit
+        const IDLE_LIMIT = 30; 
 
         let dashData = {};
         let dashCharts = {};
 
-        // MOCK DATABASE (HANYA UNTUK UJI COBA TANPA SUPABASE)
         const mockDB = {
             system_settings: { id: 1, periode: '2026/2027 Ganjil', is_locked: false },
             users: [
@@ -477,10 +472,10 @@
                 ]
             },
             users: {
-                title: 'Manajemen User', table: 'users', icon: 'fa-user-shield',
+                title: 'Manajemen User', table: useMockData ? 'users' : 'user_profiles', icon: 'fa-user-shield',
                 fields: [
-                    { name: 'username', label: 'Username', type: 'text', required: true, unique: true },
-                    { name: 'password', label: 'Password', type: 'text', required: true },
+                    { name: useMockData ? 'username' : 'email', label: useMockData ? 'Username' : 'Email (Sesuai Auth)', type: 'text', required: true, unique: true },
+                    { name: 'password', label: 'Password', type: 'text' },
                     { name: 'role', label: 'Role', type: 'select', options: ['super_admin', 'admin_sd', 'admin_smp', 'user'], required: true },
                     { name: 'nama_sekolah', label: 'Nama Sekolah/Instansi', type: 'text', required: true },
                     { name: 'sekolah_id', label: 'ID Sekolah (Khusus User)', type: 'number' }
@@ -536,7 +531,6 @@
         // ==========================================
         async function initAuth() {
             if (useMockData) {
-                // Gunakan LocalStorage jika MockDB aktif
                 let storedUser = JSON.parse(localStorage.getItem('sipas_user'));
                 if (storedUser) {
                     if (storedUser.role === 'admin') { storedUser.role = 'super_admin'; localStorage.setItem('sipas_user', JSON.stringify(storedUser)); }
@@ -546,7 +540,6 @@
                     document.getElementById('login-screen').classList.remove('hidden');
                 }
             } else {
-                // Gunakan Session JWT Resmi Supabase jika Produksi
                 const { data: { session } } = await supabaseClient.auth.getSession();
                 if (session) {
                     await fetchUserProfile(session.user);
@@ -554,7 +547,6 @@
                     document.getElementById('login-screen').classList.remove('hidden');
                 }
 
-                // Dengarkan perubahan status login
                 supabaseClient.auth.onAuthStateChange(async (event, session) => {
                     if (event === 'SIGNED_IN' && !currentUser) {
                         await fetchUserProfile(session.user);
@@ -569,7 +561,6 @@
 
         async function fetchUserProfile(authUser) {
             try {
-                // Ambil role dan data ekstra dari tabel public user_profiles
                 const { data: profile, error } = await supabaseClient
                     .from('user_profiles')
                     .select('*')
@@ -611,7 +602,6 @@
             errorEl.classList.add('hidden');
 
             if (useMockData) {
-                // LOGIKA MOCK DB LAMA
                 setTimeout(() => {
                     const user = mockDB.users.find(x => x.username === u && x.password === p);
                     loader.classList.add('hidden');
@@ -624,7 +614,6 @@
                     } else errorEl.classList.remove('hidden');
                 }, 800);
             } else {
-                // LOGIKA SUPABASE AUTHENTICATION (PRODUKSI)
                 try {
                     const { data, error } = await supabaseClient.auth.signInWithPassword({
                         email: u,
@@ -633,7 +622,6 @@
                     
                     if (error) throw error;
                     logActivity('Login ke sistem');
-                    // initApp akan otomatis dipanggil oleh onAuthStateChange
                 } catch (err) {
                     loader.classList.add('hidden');
                     errorEl.textContent = "Gagal masuk: " + err.message;
@@ -651,7 +639,7 @@
                     Swal.fire({ title: 'Sesi Habis', text: 'Auto-logout 30 menit.', icon: 'warning' }).then(() => window.location.reload());
                 } else window.location.reload();
             } else {
-                await supabaseClient.auth.signOut(); // Ini akan memicu onAuthStateChange SIGNED_OUT
+                await supabaseClient.auth.signOut();
                 if (isAuto) Swal.fire({ title: 'Sesi Habis', text: 'Auto-logout 30 menit.', icon: 'warning' });
             }
         }
@@ -700,7 +688,6 @@
                 let unreadCount = 0;
                 if(useMockData) {
                     if(currentUser.role === 'user') {
-                        // In MockDB, filter by user's school and active period
                         unreadCount = mockDB.pesan.filter(p => p.sekolah_id === currentUser.sekolah_id && p.status === 'Unread' && p.periode === appSettings.periode).length;
                     }
                 } else {
@@ -1046,7 +1033,7 @@
                 cancelButtonText: 'Batal'
             }).then(async (result) => {
                 if (result.isConfirmed) {
-                    const idx = mockDB.users.findIndex(x => x.id === userId);
+                    const idx = mockDB.users.findIndex(x => String(x.id) === String(userId));
                     if(idx > -1) mockDB.users[idx].password = '123456';
                     logActivity(`Mereset password user ID ${userId}`);
                     Swal.fire('Berhasil!', 'Password telah direset ke 123456.', 'success');
@@ -1055,9 +1042,6 @@
             });
         }
 
-        // ==========================================
-        // CETAK PROFIL & REKAP KABUPATEN
-        // ==========================================
         async function printSchoolProfile(schoolId) {
             try {
                 Swal.fire({ title: 'Mempersiapkan Dokumen...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
@@ -1229,9 +1213,6 @@
             }, 2500);
         }
 
-        // ==========================================
-        // DASHBOARD WITH ANALYTIC FILTERS
-        // ==========================================
         async function renderDashboard() {
             const content = document.getElementById('dynamic-content');
             
@@ -1322,14 +1303,12 @@
             `;
             content.innerHTML = html;
             
-            // Draw charts based on "all" schools initially
             setTimeout(() => {
                 updateDashboardCharts('all');
             }, 100);
         }
 
         function updateDashboardCharts(schoolId) {
-            // Helper to filter data based on school dropdown
             const filterData = (dataArray) => {
                 if (schoolId === 'all') return dataArray;
                 return dataArray.filter(d => String(d.sekolah_id) === String(schoolId));
@@ -1346,7 +1325,6 @@
             const fBos = filterData(dashData.bos);
             const fAkreditasi = filterData(dashData.akreditasi);
 
-            // Calculate Stats for Top Cards
             const totalSiswa = fSiswa.reduce((acc, curr) => acc + Number(curr.total_siswa || 0), 0);
             const totalGTK = fGtk.length;
             const rasio = totalGTK > 0 ? (totalSiswa / totalGTK).toFixed(1) : 0;
@@ -1358,7 +1336,6 @@
 
             const countFreq = (arr, key) => arr.reduce((acc, curr) => { const val = curr[key] || 'Tidak Diketahui'; acc[val] = (acc[val] || 0) + (curr.jumlah ? Number(curr.jumlah) : 1); return acc; }, {});
             
-            // Destroy existing charts to prevent overlap/glitches
             if (dashCharts.gedung) dashCharts.gedung.destroy();
             if (dashCharts.gtk) dashCharts.gtk.destroy();
             if (dashCharts.siswa) dashCharts.siswa.destroy();
@@ -1369,7 +1346,6 @@
             if (dashCharts.bos) dashCharts.bos.destroy();
             if (dashCharts.akreditasi) dashCharts.akreditasi.destroy();
 
-            // Re-draw Charts
             const dGedung = countFreq(fGedung, 'kondisi');
             dashCharts.gedung = new Chart(document.getElementById('chart-gedung'), { type: 'doughnut', data: { labels: Object.keys(dGedung), datasets: [{ data: Object.values(dGedung), backgroundColor: ['#10b981', '#fbbf24', '#f97316', '#ef4444'] }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } } });
             
@@ -1412,7 +1388,6 @@
             if (useMockData) {
                 let data = mockDB[tableName] || [];
                 
-                // DATA ARCHIVING: Filter data berdasarkan periode aktif (Kecuali tabel master/settings)
                 if (!['users', 'logs', 'system_settings', 'schools', 'announcements'].includes(tableName)) {
                     data = data.filter(d => d.periode === appSettings.periode);
                 }
@@ -1438,7 +1413,6 @@
             } else {
                 let query = supabaseClient.from(tableName).select('*');
                 
-                // DATA ARCHIVING (Supabase)
                 if (!['users', 'logs', 'system_settings', 'schools', 'announcements'].includes(tableName)) {
                     query = query.eq('periode', appSettings.periode);
                 }
@@ -1529,12 +1503,22 @@
             filteredTableData = [...currentTableData]; 
             currentPage = 1; 
             
+            const isSuperAdmin = currentUser.role === 'super_admin';
             const isAdmin = ['super_admin', 'admin_sd', 'admin_smp'].includes(currentUser.role);
             const isUserTable = schemaId === 'users';
             const isLogTable = schemaId === 'logs';
             
             const isLocked = appSettings.is_locked && !isAdmin;
-            const canAdd = !isLocked && !isLogTable && ((isAdmin && isUserTable) || (!isAdmin && schemaId !== 'schools'));
+            
+            let canAdd = false;
+            if (!isLocked && !isLogTable) {
+                if (isSuperAdmin && isUserTable) {
+                    canAdd = true; 
+                } else if (!isUserTable && schemaId !== 'schools') {
+                    canAdd = true;
+                }
+            }
+            
             const isSyncable = ['gtk', 'siswa'].includes(schemaId); 
             const showImportExport = !isLocked && isSyncable;
 
@@ -1617,7 +1601,6 @@
                             </tr>
                         </thead>
                         <tbody id="table-body">
-                            <!-- Diisi oleh fungsi renderTableBody() -->
                         </tbody>
                     </table>
                 </div>
@@ -1637,13 +1620,25 @@
             
             if (!tbody || !pagContainer) return;
 
+            const isSuperAdmin = currentUser.role === 'super_admin';
             const isAdmin = ['super_admin', 'admin_sd', 'admin_smp'].includes(currentUser.role);
             const isUserTable = currentMenu === 'users';
             const isLogTable = currentMenu === 'logs';
             
             const isLocked = appSettings.is_locked && !isAdmin;
-            const canEdit = !isLocked && !isLogTable && ((isAdmin && isUserTable) || (!isAdmin));
-            const canDelete = !isLocked && !isLogTable && ((isAdmin && isUserTable) || (!isAdmin && currentMenu !== 'schools'));
+            
+            let canEdit = false;
+            let canDelete = false;
+            if (!isLocked && !isLogTable) {
+                if (isSuperAdmin && isUserTable) {
+                    canEdit = true;
+                    canDelete = true;
+                } else if (!isUserTable) {
+                    canEdit = true;
+                    canDelete = (currentMenu !== 'schools');
+                }
+            }
+
             const canEditStatusAdmin = isAdmin && (currentMenu === 'sptjm' || currentMenu === 'gedung'); 
             const isAdminMessage = isAdmin && currentMenu === 'pesan'; 
             const canApprove = isAdmin && (currentMenu === 'gedung' || currentMenu === 'sptjm');
@@ -1709,12 +1704,11 @@
 
                     if(!isLogTable) {
                         rowHtml += `<td class="px-6 py-4 text-center no-print whitespace-nowrap">
-                            <button onclick="viewData(${row.id})" class="text-green-600 hover:text-green-800 mx-1 bg-green-50 p-2 rounded" title="Lihat Detail"><i class="fa-solid fa-eye"></i></button>
-                            ${(canEdit || canEditStatusAdmin || isAdminMessage) && currentMenu !== 'pesan' ? `<button onclick="editData(${row.id})" class="text-blue-600 hover:text-blue-800 mx-1 bg-blue-50 p-2 rounded" title="Edit Data"><i class="fa-solid fa-pen"></i></button>` : ''}
-                            ${canApprove ? `<button onclick="quickUpdateStatus(${row.id}, '${currentMenu === 'gedung' ? 'Valid' : 'Disetujui'}')" class="text-emerald-600 hover:text-emerald-800 mx-1 bg-emerald-100 p-2 rounded" title="Validasi/Setujui"><i class="fa-solid fa-check"></i></button><button onclick="quickUpdateStatus(${row.id}, 'Ditolak')" class="text-rose-600 hover:text-rose-800 mx-1 bg-rose-100 p-2 rounded" title="Tolak"><i class="fa-solid fa-xmark"></i></button>` : ''}
-                            ${(canDelete || isAdminMessage) ? `<button onclick="deleteData(${row.id})" class="text-red-600 hover:text-red-800 mx-1 bg-red-50 p-2 rounded" title="Hapus Data"><i class="fa-solid fa-trash"></i></button>` : ''}
-                            ${currentUser.role === 'super_admin' && currentMenu === 'users' ? `<button onclick="resetUserPassword(${row.id})" class="text-orange-500 hover:text-orange-700 mx-1 bg-orange-50 p-2 rounded" title="Reset Password ke 123456"><i class="fa-solid fa-key"></i></button>` : ''}
-                            ${isAdmin && currentMenu === 'schools' ? `<button onclick="printSchoolProfile(${row.id})" class="text-gray-600 hover:text-gray-900 mx-1 bg-gray-100 p-2 rounded" title="Cetak Profil Lengkap (PDF)"><i class="fa-solid fa-file-pdf"></i></button>` : ''}
+                            <button onclick="viewData('${row.id}')" class="text-green-600 hover:text-green-800 mx-1 bg-green-50 p-2 rounded" title="Lihat Detail"><i class="fa-solid fa-eye"></i></button>
+                            ${(canEdit || canEditStatusAdmin || isAdminMessage) && currentMenu !== 'pesan' ? `<button onclick="editData('${row.id}')" class="text-blue-600 hover:text-blue-800 mx-1 bg-blue-50 p-2 rounded" title="Edit Data"><i class="fa-solid fa-pen"></i></button>` : ''}
+                            ${canApprove ? `<button onclick="quickUpdateStatus('${row.id}', '${currentMenu === 'gedung' ? 'Valid' : 'Disetujui'}')" class="text-emerald-600 hover:text-emerald-800 mx-1 bg-emerald-100 p-2 rounded" title="Validasi/Setujui"><i class="fa-solid fa-check"></i></button><button onclick="quickUpdateStatus('${row.id}', 'Ditolak')" class="text-rose-600 hover:text-rose-800 mx-1 bg-rose-100 p-2 rounded" title="Tolak"><i class="fa-solid fa-xmark"></i></button>` : ''}
+                            ${(canDelete || isAdminMessage) ? `<button onclick="deleteData('${row.id}')" class="text-red-600 hover:text-red-800 mx-1 bg-red-50 p-2 rounded" title="Hapus Data"><i class="fa-solid fa-trash"></i></button>` : ''}
+                            ${isAdmin && currentMenu === 'schools' ? `<button onclick="printSchoolProfile('${row.id}')" class="text-gray-600 hover:text-gray-900 mx-1 bg-gray-100 p-2 rounded" title="Cetak Profil Lengkap (PDF)"><i class="fa-solid fa-file-pdf"></i></button>` : ''}
                         </td>`;
                     }
                     rowHtml += `</tr>`;
@@ -1782,13 +1776,27 @@
             
             const form = document.getElementById('crud-form');
             form.innerHTML = '';
-            let rowData = id ? currentTableData.find(d => d.id === id) || {} : {};
+            let rowData = id ? currentTableData.find(d => String(d.id) === String(id)) || {} : {};
             let formHtml = `<div class="grid grid-cols-1 md:grid-cols-2 gap-4">`;
             
             schema.fields.forEach(f => {
                 const value = rowData[f.name] || '';
-                const required = f.required && mode !== 'view' ? 'required' : '';
-                const reqStar = f.required && mode !== 'view' ? '<span class="text-red-500">*</span>' : '';
+                let required = f.required && mode !== 'view' ? 'required' : '';
+                let reqStar = f.required && mode !== 'view' ? '<span class="text-red-500">*</span>' : '';
+                
+                // Menangani Password (Disembunyikan jika mode edit pada mode produksi)
+                if (f.name === 'password') {
+                    if (!useMockData && editingId) {
+                        formHtml += `<div class="mb-2"><label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                        <p class="text-xs text-gray-500 italic p-2 bg-gray-50 border border-gray-200 rounded mt-1">Sandi tidak dapat diubah di sini. Gunakan fitur "Lupa Password" atau Dashboard Auth Supabase.</p></div>`;
+                        return; 
+                    }
+                    if (!editingId) {
+                        required = 'required';
+                        reqStar = '<span class="text-red-500">*</span>';
+                    }
+                }
+
                 formHtml += `<div class="mb-2"><label class="block text-sm font-medium text-gray-700 mb-1">${f.label} ${reqStar}</label>`;
                 
                 let isReadOnly = f.readonly || mode === 'view';
@@ -1916,7 +1924,6 @@
             for (const f of schema.fields) {
                 const inputEl = document.getElementById(`input-${f.name}`);
                 if (f.type !== 'file' && inputEl) {
-                    // Mencegah pengiriman string kosong "" ke kolom yang bertipe angka di Supabase
                     if (f.type === 'number' && inputEl.value === '') {
                         payload[f.name] = null;
                     } else {
@@ -1926,12 +1933,12 @@
             }
 
             for (const f of schema.fields) {
-                if (f.unique && payload[f.name]) {
+                if (f.unique && payload[f.name] && f.name !== 'password') {
                     let isDuplicate = false;
                     if (useMockData) {
-                        isDuplicate = mockDB[schema.table].some(d => d[f.name] === payload[f.name] && d.id !== editingId);
+                        isDuplicate = mockDB[schema.table].some(d => d[f.name] === payload[f.name] && String(d.id) !== String(editingId));
                     } else {
-                        const { data } = await supabaseClient.from(schema.table).select('id').eq(f.name, payload[f.name]).neq('id', editingId || 0);
+                        const { data } = await supabaseClient.from(schema.table).select('id').eq(f.name, payload[f.name]).neq('id', editingId || '00000000-0000-0000-0000-000000000000');
                         if (data && data.length > 0) isDuplicate = true;
                     }
                     
@@ -1943,6 +1950,77 @@
             }
             
             try {
+                // ===============================================
+                // KHUSUS MENU MANAJEMEN USER (MODE PRODUKSI AUTH)
+                // ===============================================
+                if (!useMockData && schema.table === 'user_profiles') {
+                    if (!editingId) {
+                        // BUAT USER BARU
+                        if (!payload.password) {
+                            Swal.fire('Error', 'Password wajib diisi untuk pengguna baru!', 'error');
+                            return;
+                        }
+                        btnSave.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Mendaftarkan Akun...`;
+                        btnSave.disabled = true;
+
+                        // 1. Buat Klien Latar Belakang (Agar Super Admin tidak ter-logout)
+                        const tempClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+                            auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+                        });
+                        
+                        // 2. Daftarkan Auth
+                        const { data: authData, error: authError } = await tempClient.auth.signUp({
+                            email: payload.email,
+                            password: payload.password
+                        });
+
+                        if (authError) {
+                            Swal.fire('Gagal Mendaftar', authError.message, 'error');
+                            btnSave.innerHTML = originalBtnText; btnSave.disabled = false;
+                            return;
+                        }
+
+                        // 3. Masukkan Profil ke user_profiles
+                        const newUserId = authData.user.id;
+                        payload.id = newUserId;
+                        delete payload.password; // Jangan pernah menyimpan teks sandi di tabel!
+
+                        // Menggunakan upsert berjaga-jaga jika trigger otomatis Database Anda sedang aktif
+                        const { error: profileError } = await supabaseClient.from('user_profiles').upsert(payload);
+                        if (profileError) {
+                            Swal.fire('Gagal Menyimpan Profil', profileError.message, 'error');
+                            btnSave.innerHTML = originalBtnText; btnSave.disabled = false;
+                            return;
+                        }
+                        
+                        logActivity(`Menambahkan user baru: ${payload.email}`);
+                        closeModal(); 
+                        loadPage(currentMenu); 
+                        Swal.fire('Berhasil!', 'User berhasil didaftarkan. Sekolah kini bisa login dengan email tersebut.', 'success');
+                        return;
+                    } else {
+                        // UPDATE USER YANG SUDAH ADA
+                        btnSave.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Menyimpan Profil...`;
+                        btnSave.disabled = true;
+
+                        delete payload.password; // Tidak bisa update auth.users password dari sini
+                        const { error: profileError } = await supabaseClient.from('user_profiles').update(payload).eq('id', editingId);
+                        
+                        if (profileError) {
+                            Swal.fire('Gagal Menyimpan Profil', profileError.message, 'error');
+                            btnSave.innerHTML = originalBtnText; btnSave.disabled = false;
+                            return;
+                        }
+                        
+                        logActivity(`Mengubah profil user: ${payload.email}`);
+                        closeModal(); 
+                        loadPage(currentMenu); 
+                        Swal.fire('Berhasil!', 'Profil user berhasil diperbarui.', 'success');
+                        return;
+                    }
+                }
+                // ===============================================
+
                 btnSave.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Memproses...`;
                 btnSave.disabled = true;
 
@@ -1952,7 +2030,6 @@
                         if (inputEl && inputEl.files && inputEl.files.length > 0) {
                             const file = inputEl.files[0];
                             
-                            // VALIDASI TIPE MIME & UKURAN FILE (MAKS 2MB)
                             const allowedTypes = f.accept ? f.accept.split(',').map(type => {
                                 if(type.includes('pdf')) return 'application/pdf';
                                 if(type.includes('zip')) return 'application/zip';
@@ -1966,7 +2043,7 @@
                                 btnSave.innerHTML = originalBtnText; btnSave.disabled = false;
                                 return;
                             }
-                            if (file.size > 2 * 1024 * 1024) { // 2MB
+                            if (file.size > 2 * 1024 * 1024) { 
                                 Swal.fire('Ukuran Terlalu Besar', `Ukuran file ${file.name} melebihi batas 2MB.`, 'error');
                                 btnSave.innerHTML = originalBtnText; btnSave.disabled = false;
                                 return;
@@ -1986,14 +2063,19 @@
                                 payload[f.name] = publicUrlData.publicUrl;
                             }
                         } else if (editingId) {
-                            payload[f.name] = currentTableData.find(d => d.id === editingId)[f.name]; 
+                            payload[f.name] = currentTableData.find(d => String(d.id) === String(editingId))[f.name]; 
                         }
                     } else {
-                        if(inputEl && inputEl.value !== undefined) payload[f.name] = inputEl.value;
+                        if(inputEl && inputEl.value !== undefined) {
+                            if (f.type === 'number' && inputEl.value === '') {
+                                payload[f.name] = null;
+                            } else {
+                                payload[f.name] = inputEl.value;
+                            }
+                        }
                     }
                 }
 
-                // DATA ARCHIVING: Set data ke periode yang sedang aktif saat ini jika bukan tabel master
                 if (!['users', 'logs', 'system_settings', 'schools', 'announcements'].includes(schema.table)) {
                     payload.periode = appSettings.periode;
                 }
@@ -2015,7 +2097,6 @@
                     payload.waktu = new Date().toLocaleString('id-ID').split(' ')[0];
                 }
                 
-                // Server-side / fallback calculation
                 if (schema.table === 'siswa') {
                     payload.total_siswa = Number(payload.total_l || 0) + Number(payload.total_p || 0);
                 }
@@ -2028,7 +2109,7 @@
 
                 if (useMockData) {
                     if (editingId) { 
-                        const idx = mockDB[schema.table].findIndex(x => x.id === editingId); 
+                        const idx = mockDB[schema.table].findIndex(x => String(x.id) === String(editingId)); 
                         mockDB[schema.table][idx] = { ...mockDB[schema.table][idx], ...payload }; 
                     } else { 
                         payload.id = Date.now(); 
@@ -2089,15 +2170,13 @@
                     const payload = { [statusField]: newStatus };
                     const alasanPenolakan = result.value;
 
-                    // Mengambil sekolah_id untuk dikirim pesan
-                    const targetRow = currentTableData.find(x => x.id === id);
+                    const targetRow = currentTableData.find(x => String(x.id) === String(id));
                     const targetSchoolId = targetRow ? targetRow.sekolah_id : null;
                     
                     if (useMockData) {
-                        const idx = mockDB[schema.table].findIndex(x => x.id === id);
+                        const idx = mockDB[schema.table].findIndex(x => String(x.id) === String(id));
                         if (idx > -1) mockDB[schema.table][idx][statusField] = newStatus;
                         
-                        // Buat Pesan Internal Otomatis jika ditolak
                         if (newStatus === 'Ditolak' && targetSchoolId) {
                             if(!mockDB.pesan) mockDB.pesan = [];
                             mockDB.pesan.push({
@@ -2153,7 +2232,7 @@
                 if (result.isConfirmed) {
                     const schema = schemas[currentMenu]; 
                     if (useMockData) { 
-                        mockDB[schema.table] = mockDB[schema.table].filter(x => x.id !== id); 
+                        mockDB[schema.table] = mockDB[schema.table].filter(x => String(x.id) !== String(id)); 
                         logActivity(`Menghapus data di tabel ${schema.title}`);
                         loadPage(currentMenu); 
                         Swal.fire('Terhapus!', 'Data berhasil dihapus dari sistem.', 'success');
@@ -2218,7 +2297,6 @@
                         let record = {}; 
                         schema.fields.forEach(f => { if (row[f.label] !== undefined) record[f.name] = row[f.label]; }); 
                         
-                        // Set periode
                         if (!['users', 'logs', 'system_settings', 'schools', 'announcements'].includes(schema.table)) {
                             record.periode = appSettings.periode;
                         }
