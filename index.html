@@ -107,10 +107,10 @@
             
             <form id="login-form" onsubmit="handleLogin(event)">
                 <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-1" id="login-label">Email / Username</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1" id="login-label">Username</label>
                     <div class="relative">
-                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400"><i class="fa-solid fa-envelope"></i></span>
-                        <input type="text" id="username" class="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-dinas-500" required placeholder="admin@dinas.go.id / superadmin">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400"><i class="fa-solid fa-user"></i></span>
+                        <input type="text" id="username" class="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-dinas-500" required placeholder="superadmin / adminsd / sekolah1">
                     </div>
                 </div>
                 <div class="mb-6">
@@ -120,13 +120,13 @@
                         <input type="password" id="password" class="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-dinas-500" required placeholder="••••••••">
                     </div>
                 </div>
-                <div id="login-error" class="hidden mb-4 text-sm text-red-600 bg-red-100 p-2 rounded">Kredensial tidak valid atau akun tidak ditemukan!</div>
+                <div id="login-error" class="hidden mb-4 text-sm text-red-600 bg-red-100 p-2 rounded">Username atau password salah!</div>
                 <button type="submit" class="w-full bg-dinas-800 hover:bg-dinas-900 text-white font-bold py-2 px-4 rounded-lg transition duration-200 flex justify-center items-center">
                     <span id="login-text">Masuk Sistem</span>
                     <div id="login-loader" class="loader hidden w-5 h-5 border-2 border-t-white ml-2"></div>
                 </button>
                 <div class="mt-4 text-[11px] text-center text-gray-500 italic" id="mock-login-helper">
-                    Uji Coba (Pass: 123456) => superadmin | adminsd | adminsmp | sekolah1 | sekolah2
+                    Sandi Default: 123456
                 </div>
             </form>
         </div>
@@ -224,19 +224,18 @@
     <!-- PENGATURAN SUPABASE & LOGIC APLIKASI -->
     <script>
         // ==========================================
-        // 1. KONFIGURASI SUPABASE & AUTHENTICATION
+        // 1. KONFIGURASI SUPABASE 
         // ==========================================
-        const SUPABASE_URL = 'https://ruvqyojeftgllbisknff.supabase.co';
-        const SUPABASE_ANON_KEY = 'sb_publishable_Y8-l3DWcKU2BEdpJ99u_fw_WDS60ylw';
+        // UNTUK PRODUKSI: Ganti URL dan Key ini dengan yang ada di Dashboard Supabase Anda
+        const SUPABASE_URL = 'https://YOUR_PROJECT_ID.supabase.co';
+        const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';
         
         let supabaseClient = null;
         const useMockData = SUPABASE_URL.includes('YOUR_PROJECT_ID');
         
         if (!useMockData) {
+            // Kita tetap memakai client Supabase untuk database, tapi TIDAK pakai Supabase Auth
             supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-            document.getElementById('login-label').textContent = 'Email Pengguna';
-            document.getElementById('username').placeholder = 'sekolah@domain.com';
-            document.getElementById('mock-login-helper').classList.add('hidden');
         }
 
         // ==========================================
@@ -472,10 +471,10 @@
                 ]
             },
             users: {
-                title: 'Manajemen User', table: useMockData ? 'users' : 'user_profiles', icon: 'fa-user-shield',
+                title: 'Manajemen User', table: 'users', icon: 'fa-user-shield',
                 fields: [
-                    { name: useMockData ? 'username' : 'email', label: useMockData ? 'Username' : 'Email (Sesuai Auth)', type: 'text', required: true, unique: true },
-                    { name: 'password', label: 'Password', type: 'text' },
+                    { name: 'username', label: 'Username', type: 'text', required: true, unique: true },
+                    { name: 'password', label: 'Password', type: 'text', required: true },
                     { name: 'role', label: 'Role', type: 'select', options: ['super_admin', 'admin_sd', 'admin_smp', 'user'], required: true },
                     { name: 'nama_sekolah', label: 'Nama Sekolah/Instansi', type: 'text', required: true },
                     { name: 'sekolah_id', label: 'ID Sekolah (Khusus User)', type: 'number' }
@@ -527,67 +526,19 @@
         };
 
         // ==========================================
-        // 3. LOGIKA AUTHENTICATION (SUPABASE AUTH)
+        // 3. LOGIKA AUTHENTICATION (SIMPLE DB CHECK)
         // ==========================================
-        async function initAuth() {
-            if (useMockData) {
-                let storedUser = JSON.parse(localStorage.getItem('sipas_user'));
-                if (storedUser) {
-                    if (storedUser.role === 'admin') { storedUser.role = 'super_admin'; localStorage.setItem('sipas_user', JSON.stringify(storedUser)); }
-                    currentUser = storedUser;
-                    initApp();
-                } else {
-                    document.getElementById('login-screen').classList.remove('hidden');
+        function initAuth() {
+            let storedUser = JSON.parse(localStorage.getItem('sipas_user'));
+            if (storedUser) {
+                if (storedUser.role === 'admin') { 
+                    storedUser.role = 'super_admin'; 
+                    localStorage.setItem('sipas_user', JSON.stringify(storedUser)); 
                 }
-            } else {
-                const { data: { session } } = await supabaseClient.auth.getSession();
-                if (session) {
-                    await fetchUserProfile(session.user);
-                } else {
-                    document.getElementById('login-screen').classList.remove('hidden');
-                }
-
-                supabaseClient.auth.onAuthStateChange(async (event, session) => {
-                    if (event === 'SIGNED_IN' && !currentUser) {
-                        await fetchUserProfile(session.user);
-                    } else if (event === 'SIGNED_OUT') {
-                        currentUser = null;
-                        document.getElementById('app-screen').classList.add('hidden');
-                        document.getElementById('login-screen').classList.remove('hidden');
-                    }
-                });
-            }
-        }
-
-        async function fetchUserProfile(authUser) {
-            try {
-                const { data: profile, error } = await supabaseClient
-                    .from('user_profiles')
-                    .select('*')
-                    .eq('id', authUser.id)
-                    .single();
-                
-                if (error) {
-                    if (error.code === 'PGRST116') {
-                        throw new Error("Profil belum terdaftar di tabel 'user_profiles'. Harap jalankan skrip SQL Sinkronisasi di Dashboard Supabase.");
-                    }
-                    throw error;
-                }
-                
-                currentUser = { 
-                    id: authUser.id, 
-                    email: authUser.email,
-                    ...profile 
-                };
+                currentUser = storedUser;
                 initApp();
-            } catch (err) {
-                console.error("Gagal menarik profil user:", err);
-                Swal.fire({
-                    title: 'Gagal Memuat Profil',
-                    text: err.message || 'Terjadi kesalahan saat mengambil profil dari database.',
-                    icon: 'error'
-                });
-                await supabaseClient.auth.signOut();
+            } else {
+                document.getElementById('login-screen').classList.remove('hidden');
             }
         }
 
@@ -601,46 +552,42 @@
             loader.classList.remove('hidden'); 
             errorEl.classList.add('hidden');
 
-            if (useMockData) {
-                setTimeout(() => {
-                    const user = mockDB.users.find(x => x.username === u && x.password === p);
-                    loader.classList.add('hidden');
-                    if (user) { 
-                        currentUser = user; 
-                        if(currentUser.role === 'admin') currentUser.role = 'super_admin';
-                        localStorage.setItem('sipas_user', JSON.stringify(currentUser)); 
-                        initApp(); 
-                        logActivity('Login ke sistem');
-                    } else errorEl.classList.remove('hidden');
-                }, 800);
-            } else {
-                try {
-                    const { data, error } = await supabaseClient.auth.signInWithPassword({
-                        email: u,
-                        password: p
-                    });
-                    
-                    if (error) throw error;
+            setTimeout(async () => {
+                let user = null;
+                
+                if (useMockData) {
+                    user = mockDB.users.find(x => x.username === u && x.password === p);
+                } else {
+                    try {
+                        const { data, error } = await supabaseClient.from('users').select('*').eq('username', u).eq('password', p).single();
+                        if (data) user = data;
+                    } catch (err) {
+                        console.error("Login Query Error:", err);
+                    }
+                }
+
+                loader.classList.add('hidden');
+                
+                if (user) { 
+                    currentUser = user; 
+                    if(currentUser.role === 'admin') currentUser.role = 'super_admin';
+                    localStorage.setItem('sipas_user', JSON.stringify(currentUser)); 
+                    initApp(); 
                     logActivity('Login ke sistem');
-                } catch (err) {
-                    loader.classList.add('hidden');
-                    errorEl.textContent = "Gagal masuk: " + err.message;
+                } else {
                     errorEl.classList.remove('hidden');
                 }
-            }
+            }, 800);
         }
 
-        async function handleLogout(isAuto = false) {
+        function handleLogout(isAuto = false) {
             if (currentUser) logActivity('Logout dari sistem');
+            localStorage.removeItem('sipas_user');
             
-            if (useMockData) {
-                localStorage.removeItem('sipas_user');
-                if (isAuto) {
-                    Swal.fire({ title: 'Sesi Habis', text: 'Auto-logout 30 menit.', icon: 'warning' }).then(() => window.location.reload());
-                } else window.location.reload();
+            if (isAuto) {
+                Swal.fire({ title: 'Sesi Habis', text: 'Auto-logout 30 menit demi keamanan.', icon: 'warning' }).then(() => window.location.reload());
             } else {
-                await supabaseClient.auth.signOut();
-                if (isAuto) Swal.fire({ title: 'Sesi Habis', text: 'Auto-logout 30 menit.', icon: 'warning' });
+                window.location.reload();
             }
         }
 
@@ -723,7 +670,7 @@
         async function logActivity(aksi) {
             const payload = {
                 waktu: new Date().toLocaleString('id-ID'),
-                user: `${currentUser.nama_sekolah || currentUser.username || currentUser.email} (${currentUser.role})`,
+                user: `${currentUser.nama_sekolah || currentUser.username} (${currentUser.role})`,
                 aksi: aksi
             };
             if (useMockData) {
@@ -739,7 +686,7 @@
             document.getElementById('login-loader').classList.add('hidden');
             document.getElementById('app-screen').classList.remove('hidden');
             
-            const displayNama = currentUser.nama_sekolah || currentUser.username || currentUser.email.split('@')[0];
+            const displayNama = currentUser.nama_sekolah || currentUser.username;
             document.getElementById('sidebar-user-name').textContent = displayNama;
             document.getElementById('sidebar-user-role').textContent = `Role: ${currentUser.role.replace('_', ' ').toUpperCase()}`;
             document.getElementById('user-initial').textContent = displayNama.charAt(0).toUpperCase();
@@ -964,15 +911,6 @@
         }
 
         async function openAccountSettings() {
-            if (!useMockData) {
-                Swal.fire({
-                    title: 'Ganti Kata Sandi',
-                    text: 'Sistem sedang menggunakan Supabase Auth. Untuk alasan keamanan di purwarupa ini, pergantian kata sandi dilakukan melalui Dashboard Supabase oleh Super Admin.',
-                    icon: 'info'
-                });
-                return;
-            }
-
             const { value: formValues } = await Swal.fire({
                 title: 'Pengaturan Akun',
                 html: `
@@ -1007,21 +945,28 @@
             });
 
             if (formValues) {
-                const idx = mockDB.users.findIndex(x => x.id === currentUser.id);
-                if(idx > -1) mockDB.users[idx].password = formValues.newPass;
-                currentUser.password = formValues.newPass;
-                localStorage.setItem('sipas_user', JSON.stringify(currentUser));
-                logActivity('Merubah password akun');
-                Swal.fire('Berhasil!', 'Password Anda berhasil diperbarui.', 'success');
+                if (useMockData) {
+                    const idx = mockDB.users.findIndex(x => x.id === currentUser.id);
+                    if(idx > -1) mockDB.users[idx].password = formValues.newPass;
+                    currentUser.password = formValues.newPass;
+                    localStorage.setItem('sipas_user', JSON.stringify(currentUser));
+                    logActivity('Merubah password akun');
+                    Swal.fire('Berhasil!', 'Password Anda berhasil diperbarui.', 'success');
+                } else {
+                    const { error } = await supabaseClient.from('users').update({ password: formValues.newPass }).eq('id', currentUser.id);
+                    if (error) {
+                        Swal.fire('Error!', error.message, 'error');
+                    } else {
+                        currentUser.password = formValues.newPass;
+                        localStorage.setItem('sipas_user', JSON.stringify(currentUser));
+                        logActivity('Merubah password akun');
+                        Swal.fire('Berhasil!', 'Password Anda berhasil diperbarui.', 'success');
+                    }
+                }
             }
         }
 
         async function resetUserPassword(userId) {
-            if(!useMockData) {
-                Swal.fire('Info', 'Pada mode Produksi, Reset Password dikelola via Dashboard Authentication Supabase.', 'info');
-                return;
-            }
-
             Swal.fire({
                 title: 'Reset Password User?',
                 text: "Password pengguna ini akan dikembalikan ke pengaturan bawaan (default) yaitu: 123456",
@@ -1033,11 +978,22 @@
                 cancelButtonText: 'Batal'
             }).then(async (result) => {
                 if (result.isConfirmed) {
-                    const idx = mockDB.users.findIndex(x => String(x.id) === String(userId));
-                    if(idx > -1) mockDB.users[idx].password = '123456';
-                    logActivity(`Mereset password user ID ${userId}`);
-                    Swal.fire('Berhasil!', 'Password telah direset ke 123456.', 'success');
-                    loadPage(currentMenu);
+                    if (useMockData) {
+                        const idx = mockDB.users.findIndex(x => String(x.id) === String(userId));
+                        if(idx > -1) mockDB.users[idx].password = '123456';
+                        logActivity(`Mereset password user ID ${userId}`);
+                        Swal.fire('Berhasil!', 'Password telah direset ke 123456.', 'success');
+                        loadPage(currentMenu);
+                    } else {
+                        const { error } = await supabaseClient.from('users').update({ password: '123456' }).eq('id', userId);
+                        if (error) {
+                            Swal.fire('Gagal!', error.message, 'error');
+                        } else {
+                            logActivity(`Mereset password user ID ${userId}`);
+                            Swal.fire('Berhasil!', 'Password telah direset ke 123456.', 'success');
+                            loadPage(currentMenu);
+                        }
+                    }
                 }
             });
         }
@@ -1464,7 +1420,7 @@
                 let schoolName = '';
                 const isAdmin = ['super_admin', 'admin_sd', 'admin_smp'].includes(currentUser.role);
                 if (isAdmin && currentMenu !== 'schools' && currentMenu !== 'users' && currentMenu !== 'logs') {
-                    const s = currentSchoolsData.find(item => item.id === row.sekolah_id);
+                    const s = currentSchoolsData.find(item => String(item.id) === String(row.sekolah_id));
                     if (s) schoolName = s.nama.toLowerCase();
                 }
 
@@ -1708,6 +1664,7 @@
                             ${(canEdit || canEditStatusAdmin || isAdminMessage) && currentMenu !== 'pesan' ? `<button onclick="editData('${row.id}')" class="text-blue-600 hover:text-blue-800 mx-1 bg-blue-50 p-2 rounded" title="Edit Data"><i class="fa-solid fa-pen"></i></button>` : ''}
                             ${canApprove ? `<button onclick="quickUpdateStatus('${row.id}', '${currentMenu === 'gedung' ? 'Valid' : 'Disetujui'}')" class="text-emerald-600 hover:text-emerald-800 mx-1 bg-emerald-100 p-2 rounded" title="Validasi/Setujui"><i class="fa-solid fa-check"></i></button><button onclick="quickUpdateStatus('${row.id}', 'Ditolak')" class="text-rose-600 hover:text-rose-800 mx-1 bg-rose-100 p-2 rounded" title="Tolak"><i class="fa-solid fa-xmark"></i></button>` : ''}
                             ${(canDelete || isAdminMessage) ? `<button onclick="deleteData('${row.id}')" class="text-red-600 hover:text-red-800 mx-1 bg-red-50 p-2 rounded" title="Hapus Data"><i class="fa-solid fa-trash"></i></button>` : ''}
+                            ${currentUser.role === 'super_admin' && currentMenu === 'users' ? `<button onclick="resetUserPassword('${row.id}')" class="text-orange-500 hover:text-orange-700 mx-1 bg-orange-50 p-2 rounded" title="Reset Password ke 123456"><i class="fa-solid fa-key"></i></button>` : ''}
                             ${isAdmin && currentMenu === 'schools' ? `<button onclick="printSchoolProfile('${row.id}')" class="text-gray-600 hover:text-gray-900 mx-1 bg-gray-100 p-2 rounded" title="Cetak Profil Lengkap (PDF)"><i class="fa-solid fa-file-pdf"></i></button>` : ''}
                         </td>`;
                     }
@@ -1783,19 +1740,6 @@
                 const value = rowData[f.name] || '';
                 let required = f.required && mode !== 'view' ? 'required' : '';
                 let reqStar = f.required && mode !== 'view' ? '<span class="text-red-500">*</span>' : '';
-                
-                // Menangani Password (Disembunyikan jika mode edit pada mode produksi)
-                if (f.name === 'password') {
-                    if (!useMockData && editingId) {
-                        formHtml += `<div class="mb-2"><label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                        <p class="text-xs text-gray-500 italic p-2 bg-gray-50 border border-gray-200 rounded mt-1">Sandi tidak dapat diubah di sini. Gunakan fitur "Lupa Password" atau Dashboard Auth Supabase.</p></div>`;
-                        return; 
-                    }
-                    if (!editingId) {
-                        required = 'required';
-                        reqStar = '<span class="text-red-500">*</span>';
-                    }
-                }
 
                 formHtml += `<div class="mb-2"><label class="block text-sm font-medium text-gray-700 mb-1">${f.label} ${reqStar}</label>`;
                 
@@ -1933,12 +1877,12 @@
             }
 
             for (const f of schema.fields) {
-                if (f.unique && payload[f.name] && f.name !== 'password') {
+                if (f.unique && payload[f.name]) {
                     let isDuplicate = false;
                     if (useMockData) {
                         isDuplicate = mockDB[schema.table].some(d => d[f.name] === payload[f.name] && String(d.id) !== String(editingId));
                     } else {
-                        const { data } = await supabaseClient.from(schema.table).select('id').eq(f.name, payload[f.name]).neq('id', editingId || '00000000-0000-0000-0000-000000000000');
+                        const { data } = await supabaseClient.from(schema.table).select('id').eq(f.name, payload[f.name]).neq('id', editingId || '0');
                         if (data && data.length > 0) isDuplicate = true;
                     }
                     
@@ -1950,77 +1894,6 @@
             }
             
             try {
-                // ===============================================
-                // KHUSUS MENU MANAJEMEN USER (MODE PRODUKSI AUTH)
-                // ===============================================
-                if (!useMockData && schema.table === 'user_profiles') {
-                    if (!editingId) {
-                        // BUAT USER BARU
-                        if (!payload.password) {
-                            Swal.fire('Error', 'Password wajib diisi untuk pengguna baru!', 'error');
-                            return;
-                        }
-                        btnSave.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Mendaftarkan Akun...`;
-                        btnSave.disabled = true;
-
-                        // 1. Buat Klien Latar Belakang (Agar Super Admin tidak ter-logout)
-                        const tempClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-                            auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
-                        });
-                        
-                        // 2. Daftarkan Auth
-                        const { data: authData, error: authError } = await tempClient.auth.signUp({
-                            email: payload.email,
-                            password: payload.password
-                        });
-
-                        if (authError) {
-                            Swal.fire('Gagal Mendaftar', authError.message, 'error');
-                            btnSave.innerHTML = originalBtnText; btnSave.disabled = false;
-                            return;
-                        }
-
-                        // 3. Masukkan Profil ke user_profiles
-                        const newUserId = authData.user.id;
-                        payload.id = newUserId;
-                        delete payload.password; // Jangan pernah menyimpan teks sandi di tabel!
-
-                        // Menggunakan upsert berjaga-jaga jika trigger otomatis Database Anda sedang aktif
-                        const { error: profileError } = await supabaseClient.from('user_profiles').upsert(payload);
-                        if (profileError) {
-                            Swal.fire('Gagal Menyimpan Profil', profileError.message, 'error');
-                            btnSave.innerHTML = originalBtnText; btnSave.disabled = false;
-                            return;
-                        }
-                        
-                        logActivity(`Menambahkan user baru: ${payload.email}`);
-                        closeModal(); 
-                        loadPage(currentMenu); 
-                        Swal.fire('Berhasil!', 'User berhasil didaftarkan. Sekolah kini bisa login dengan email tersebut.', 'success');
-                        return;
-                    } else {
-                        // UPDATE USER YANG SUDAH ADA
-                        btnSave.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Menyimpan Profil...`;
-                        btnSave.disabled = true;
-
-                        delete payload.password; // Tidak bisa update auth.users password dari sini
-                        const { error: profileError } = await supabaseClient.from('user_profiles').update(payload).eq('id', editingId);
-                        
-                        if (profileError) {
-                            Swal.fire('Gagal Menyimpan Profil', profileError.message, 'error');
-                            btnSave.innerHTML = originalBtnText; btnSave.disabled = false;
-                            return;
-                        }
-                        
-                        logActivity(`Mengubah profil user: ${payload.email}`);
-                        closeModal(); 
-                        loadPage(currentMenu); 
-                        Swal.fire('Berhasil!', 'Profil user berhasil diperbarui.', 'success');
-                        return;
-                    }
-                }
-                // ===============================================
-
                 btnSave.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Memproses...`;
                 btnSave.disabled = true;
 
