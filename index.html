@@ -1,0 +1,2245 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIPENAS - Sistem Pendataan Sarana Prasarana Sekolah</title>
+    
+    <!-- Tailwind CSS untuk UI Modern -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome untuk Ikon -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Chart.js untuk Grafik -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- SheetJS untuk Export Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <!-- SweetAlert2 untuk Notifikasi Pop-up Elegan -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <!-- Leaflet JS untuk Peta Geospasial -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Supabase JS Client -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        dinas: {
+                            800: '#1e3a8a', 
+                            900: '#172554',
+                            500: '#3b82f6'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #1e3a8a; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Pengaturan Cetak (Media Print) */
+        @media print {
+            body * { visibility: hidden; }
+            #cetak-area, #cetak-area * { visibility: visible; }
+            #cetak-area { position: absolute; left: 0; top: 0; width: 100%; padding: 20px; background: white; z-index: 9999; }
+            .no-print { display: none !important; }
+            #app-screen { display: none !important; }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 font-sans">
+
+    <!-- AREA CETAK PROFIL SEKOLAH & REKAP KABUPATEN -->
+    <div id="cetak-area" class="hidden bg-white min-h-screen">
+        <div class="border-b-4 border-double border-black pb-4 mb-6 flex items-center justify-center text-center">
+            <div class="w-24 flex-shrink-0 text-center">
+                <i class="fa-solid fa-shield-halved text-6xl text-gray-800"></i>
+            </div>
+            <div class="flex-1 px-4">
+                <h2 class="text-xl font-bold uppercase tracking-wide">Pemerintah Kabupaten Manggarai Barat</h2>
+                <h1 class="text-2xl font-bold uppercase tracking-wide">Dinas Pendidikan Kepemudaan dan Olahraga</h1>
+                <p class="text-sm">Jln. Lingkan - Wae Kesambi, Labuan Bajo, Nusa Tenggara Timur</p>
+                <p class="text-sm italic">Email: disdikpora@manggaraibaratkab.go.id | Website: manggaraibaratkab.go.id</p>
+            </div>
+            <div class="w-24 flex-shrink-0"></div>
+        </div>
+        <h3 id="cetak-judul" class="text-center text-xl font-bold mb-6 underline">PROFIL LENGKAP SEKOLAH</h3>
+        <div id="cetak-content" class="text-sm"></div>
+        <div class="mt-16 text-right w-full flex justify-end">
+            <div class="text-center w-64">
+                <p>Labuan Bajo, <span id="cetak-tanggal"></span></p>
+                <p class="mb-16">Mengetahui,</p>
+                <p class="font-bold underline">Kepala Dinas</p>
+                <p>NIP. .................................</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- LOGIN SCREEN -->
+    <div id="login-screen" class="min-h-screen flex items-center justify-center bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1541339907198-e08756dedf3f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80');">
+        <div class="absolute inset-0 bg-dinas-900 bg-opacity-75"></div>
+        <div class="relative bg-white p-8 rounded-xl shadow-2xl w-full max-w-md z-10">
+            <div class="text-center mb-8">
+                <div class="inline-block bg-blue-100 p-3 rounded-full mb-3">
+                    <i class="fa-solid fa-building-columns text-3xl text-dinas-800"></i>
+                </div>
+                <h1 class="text-3xl font-bold text-gray-800 tracking-tight">SIPENAS</h1>
+                <p class="text-gray-500 text-sm mt-1">Sistem Informasi Pendataan Sekolah</p>
+                <div class="mt-3 pt-3 border-t border-gray-100">
+                    <p class="text-gray-700 text-sm font-bold leading-snug">Dinas Pendidikan Kepemudaan dan Olahraga<br>Kabupaten Manggarai Barat</p>
+                </div>
+            </div>
+            
+            <form id="login-form" onsubmit="handleLogin(event)">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1" id="login-label">Email / Username</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400"><i class="fa-solid fa-envelope"></i></span>
+                        <input type="text" id="username" class="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-dinas-500" required placeholder="admin@dinas.go.id / superadmin">
+                    </div>
+                </div>
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400"><i class="fa-solid fa-lock"></i></span>
+                        <input type="password" id="password" class="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-dinas-500" required placeholder="••••••••">
+                    </div>
+                </div>
+                <div id="login-error" class="hidden mb-4 text-sm text-red-600 bg-red-100 p-2 rounded">Kredensial tidak valid atau akun tidak ditemukan!</div>
+                <button type="submit" class="w-full bg-dinas-800 hover:bg-dinas-900 text-white font-bold py-2 px-4 rounded-lg transition duration-200 flex justify-center items-center">
+                    <span id="login-text">Masuk Sistem</span>
+                    <div id="login-loader" class="loader hidden w-5 h-5 border-2 border-t-white ml-2"></div>
+                </button>
+                <div class="mt-4 text-[11px] text-center text-gray-500 italic" id="mock-login-helper">
+                    Uji Coba (Pass: 123456) => superadmin | adminsd | adminsmp | sekolah1 | sekolah2
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MAIN APP SCREEN -->
+    <div id="app-screen" class="hidden h-screen flex overflow-hidden">
+        
+        <!-- Mobile Overlay -->
+        <div id="mobile-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden md:hidden"></div>
+
+        <!-- SIDEBAR -->
+        <aside class="fixed inset-y-0 left-0 z-50 w-64 bg-dinas-900 text-white flex flex-col transition-transform duration-300 transform -translate-x-full md:relative md:translate-x-0" id="sidebar">
+            <div class="h-16 flex items-center justify-between border-b border-dinas-800 px-4">
+                <div class="flex items-center">
+                    <i class="fa-solid fa-building-columns text-xl mr-2"></i>
+                    <span class="font-bold text-xl tracking-wider">SIPENAS</span>
+                </div>
+                <button id="close-sidebar-btn" class="md:hidden text-gray-300 hover:text-white">
+                    <i class="fa-solid fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <div class="p-4 flex items-center gap-3 border-b border-dinas-800">
+                <div class="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center font-bold text-lg" id="user-initial">A</div>
+                <div class="overflow-hidden">
+                    <p class="text-sm font-semibold truncate" id="sidebar-user-name">Administrator</p>
+                    <p class="text-xs text-blue-300 capitalize truncate" id="sidebar-user-role">Role: Admin</p>
+                </div>
+            </div>
+
+            <nav class="flex-1 overflow-y-auto py-4 custom-scrollbar" id="sidebar-menu"></nav>
+            
+            <div class="p-4 border-t border-dinas-800">
+                <button onclick="openAccountSettings()" class="flex items-center text-blue-200 hover:text-white w-full transition mb-4">
+                    <i class="fa-solid fa-user-gear w-6"></i>
+                    <span>Pengaturan Akun</span>
+                </button>
+                <button onclick="handleLogout()" class="flex items-center text-red-400 hover:text-red-300 w-full transition">
+                    <i class="fa-solid fa-right-from-bracket w-6"></i>
+                    <span>Keluar</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT AREA -->
+        <div class="flex-1 flex flex-col min-w-0">
+            <!-- HEADER -->
+            <header class="h-16 bg-white shadow flex items-center justify-between px-4 md:px-6 z-10">
+                <div class="flex items-center">
+                    <button id="mobile-menu-btn" class="md:hidden mr-4 text-gray-600 hover:text-gray-900">
+                        <i class="fa-solid fa-bars text-2xl"></i>
+                    </button>
+                    <h2 class="text-lg md:text-xl font-semibold text-gray-800" id="page-title">Dashboard Utama</h2>
+                </div>
+                <div class="flex items-center gap-4">
+                    <!-- Notification Bell untuk Pesan Internal -->
+                    <button onclick="loadPage('pesan')" class="relative text-gray-500 hover:text-dinas-800 transition mr-2">
+                        <i class="fa-solid fa-bell text-xl"></i>
+                        <span id="notif-badge" class="hidden absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border-2 border-white">0</span>
+                    </button>
+                    
+                    <div id="header-system-status" class="hidden md:block"></div>
+                    <div class="text-sm text-gray-500 hidden md:block border-l pl-4" id="current-date"></div>
+                </div>
+            </header>
+
+            <!-- MAIN DYNAMIC CONTENT -->
+            <main class="flex-1 overflow-y-auto p-4 md:p-6 bg-gray-50 relative" id="print-area">
+                <div id="content-loader" class="hidden flex justify-center items-center h-64">
+                    <div class="loader"></div>
+                </div>
+                <div id="dynamic-content"></div>
+            </main>
+        </div>
+    </div>
+
+    <!-- MODAL FORM UNTUK CRUD -->
+    <div id="crud-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center px-4">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+            <div class="px-6 py-4 border-b flex justify-between items-center bg-gray-50 rounded-t-lg">
+                <h3 class="text-lg font-semibold text-gray-800" id="modal-title">Tambah Data</h3>
+                <button onclick="closeModal()" class="text-gray-500 hover:text-red-500"><i class="fa-solid fa-times"></i></button>
+            </div>
+            <div class="p-6 overflow-y-auto flex-1">
+                <form id="crud-form"></form>
+            </div>
+            <div class="px-6 py-4 border-t flex justify-end gap-3 bg-gray-50 rounded-b-lg">
+                <button type="button" id="btn-cancel-modal" onclick="closeModal()" class="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition disabled:opacity-50">Batal</button>
+                <button type="button" id="btn-save-data" onclick="saveData()" class="px-4 py-2 bg-dinas-800 text-white rounded hover:bg-dinas-900 transition flex items-center disabled:opacity-50 disabled:cursor-not-allowed">
+                    <i class="fa-solid fa-save mr-2"></i> Simpan Data
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PENGATURAN SUPABASE & LOGIC APLIKASI -->
+    <script>
+        // ==========================================
+        // 1. KONFIGURASI SUPABASE & AUTHENTICATION
+        // ==========================================
+        // UNTUK PRODUKSI: Ganti URL dan Key ini dengan yang ada di Dashboard Supabase Anda
+        const SUPABASE_URL = 'https://ruvqyojeftgllbisknff.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_Y8-l3DWcKU2BEdpJ99u_fw_WDS60ylw';
+        
+        let supabaseClient = null;
+        const useMockData = SUPABASE_URL.includes('YOUR_PROJECT_ID');
+        
+        if (!useMockData) {
+            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            // Sesuaikan UI jika berjalan di mode Produksi
+            document.getElementById('login-label').textContent = 'Email Pengguna';
+            document.getElementById('username').placeholder = 'sekolah@domain.com';
+            document.getElementById('mock-login-helper').classList.add('hidden');
+        }
+
+        // ==========================================
+        // 2. STATE MANAGEMENT & MOCK DATA
+        // ==========================================
+        let currentUser = null; // Diisi saat initAuth()
+        let currentMenu = 'dashboard';
+        let currentTableData = [];
+        let filteredTableData = []; 
+        let currentSchoolsData = []; 
+        let currentPage = 1; 
+        let rowsPerPage = 10; 
+        let editingId = null;
+        let currentModalMode = 'edit';
+        
+        let mapInstance = null; 
+        let appSettings = { periode: '2026/2027 Ganjil', is_locked: false }; 
+        let idleTime = 0;
+        const IDLE_LIMIT = 30; // 30 Menit
+
+        let dashData = {};
+        let dashCharts = {};
+
+        // MOCK DATABASE (HANYA UNTUK UJI COBA TANPA SUPABASE)
+        const mockDB = {
+            system_settings: { id: 1, periode: '2026/2027 Ganjil', is_locked: false },
+            users: [
+                { id: 1, username: 'superadmin', password: '123456', role: 'super_admin', nama_sekolah: 'Disdikpora (Super Admin)' },
+                { id: 3, username: 'adminsd', password: '123456', role: 'admin_sd', nama_sekolah: 'Dinas - Jenjang SD' },
+                { id: 4, username: 'adminsmp', password: '123456', role: 'admin_smp', nama_sekolah: 'Dinas - Jenjang SMP' },
+                { id: 2, username: 'sekolah1', password: '123456', role: 'user', nama_sekolah: 'SMP Negeri 1 Kota', sekolah_id: 1 },
+                { id: 5, username: 'sekolah2', password: '123456', role: 'user', nama_sekolah: 'SD Negeri 1 Mbeliling', sekolah_id: 2 }
+            ],
+            schools: [
+                { id: 1, jenjang: 'SMP', npsn: '10101010', nama: 'SMP Negeri 1 Kota', kepsek: 'Budi Santoso, M.Pd', nip: '19700101', status_kepsek: 'Definitif', alamat: 'Jl. Merdeka No 1', latitude: '-8.502', longitude: '119.882', luas_lahan: '5000', status_lahan: 'Milik Pemda', file_bukti_lahan: 'Sertifikat_Tanah_SMP1.pdf' },
+                { id: 2, jenjang: 'SD', npsn: '20202020', nama: 'SD Negeri 1 Mbeliling', kepsek: 'Ahmad Yani, S.Pd', nip: '19800202', status_kepsek: 'Definitif', alamat: 'Kec. Mbeliling', latitude: '-8.552', longitude: '119.982', luas_lahan: '3000', status_lahan: 'Milik Pemda', file_bukti_lahan: 'Sertifikat_SDN1.pdf' }
+            ],
+            gtk: [
+                { id: 1, sekolah_id: 1, periode: '2026/2027 Ganjil', nama: 'Siti Aminah', nip: '1980', nuptk: '123', jk: 'P', pendidikan: 'S1', status: 'PNS', mapel: 'Matematika', sertifikasi: 'Ya', jam: 24 },
+                { id: 2, sekolah_id: 2, periode: '2026/2027 Ganjil', nama: 'Joko Widodo', nip: '1990', nuptk: '456', jk: 'L', pendidikan: 'S1', status: 'PPPK', mapel: 'Guru Kelas', sertifikasi: 'Belum', jam: 24 }
+            ],
+            siswa: [
+                { id: 1, sekolah_id: 1, periode: '2026/2027 Ganjil', kelas: '7', total_l: 150, total_p: 160, total_siswa: 310, mutasi_in: 3, mutasi_out: 1, putus: 0 },
+                { id: 2, sekolah_id: 2, periode: '2026/2027 Ganjil', kelas: '1', total_l: 20, total_p: 25, total_siswa: 45, mutasi_in: 0, mutasi_out: 0, putus: 0 }
+            ],
+            gedung: [
+                { id: 1, sekolah_id: 1, periode: '2026/2027 Ganjil', jenis: 'Ruang Kelas', kondisi: 'Baik', jumlah: 15, catatan: '-', status_verifikasi: 'Valid' },
+                { id: 2, sekolah_id: 1, periode: '2026/2027 Ganjil', jenis: 'Perpustakaan', kondisi: 'Rusak Ringan', jumlah: 1, catatan: 'Atap bocor sedikit', status_verifikasi: 'Menunggu' },
+                { id: 3, sekolah_id: 2, periode: '2026/2027 Ganjil', jenis: 'Ruang Kelas', kondisi: 'Rusak Berat', jumlah: 2, catatan: 'Plafon hancur', status_verifikasi: 'Menunggu' }
+            ],
+            meubeler: [
+                { id: 1, sekolah_id: 1, periode: '2026/2027 Ganjil', jenis: 'Meja Siswa', kondisi: 'Baik', jumlah: 150, kebutuhan: 30, perbaikan: 10, file_foto: 'foto_meja_siswa.jpg' }
+            ],
+            peralatan_it: [
+                { id: 1, sekolah_id: 1, periode: '2026/2027 Ganjil', jenis: 'Chromebook', sumber: 'Pusat', kondisi: 'Baik', jumlah: 15, file_foto: 'foto_chromebook.jpg' }
+            ],
+            ensiklopedia: [
+                { id: 1, sekolah_id: 1, periode: '2026/2027 Ganjil', jenis_buku: 'Buku Teks', kondisi: 'Baik', jumlah: 100, sumber: 'Dana BOS', file_foto: 'ensiklopedia_demo.jpg' }
+            ],
+            pip: [
+                { id: 1, sekolah_id: 1, periode: '2026/2027 Ganjil', kelas: '7', tahun: '2025', usulan: 45, penerima: 40, selisih: 5, nominal_cair: 30000000, keterangan: '5 siswa mutasi ke luar daerah.' }
+            ],
+            bos: [
+                { id: 1, sekolah_id: 1, periode: '2026/2027 Ganjil', tahun: 2026, alokasi_total: 100000000, tahap1_jumlah: 55000000, tahap1_status: 'Sudah Cair', tahap2_jumlah: 45000000, tahap2_status: 'Proses', penggunaan_dana: 50000000, sisa_dana: 5000000, file_rkas: 'RKAS_2026.pdf', file_lpj: '' },
+                { id: 2, sekolah_id: 2, periode: '2026/2027 Ganjil', tahun: 2026, alokasi_total: 50000000, tahap1_jumlah: 25000000, tahap1_status: 'Sudah Cair', tahap2_jumlah: 25000000, tahap2_status: 'Belum Diajukan', penggunaan_dana: 20000000, sisa_dana: 5000000, file_rkas: '', file_lpj: '' }
+            ],
+            akreditasi: [
+                { id: 1, sekolah_id: 1, periode: '2026/2027 Ganjil', tahun: 2024, nilai: 92, peringkat: 'A', no_sk: '123/BAN-SM/SK/2024', tanggal_sk: '2024-10-15', lembaga: 'BAN-S/M', file_sk: 'SK_Akreditasi_2024.pdf' }
+            ],
+            sptjm: [
+                { id: 1, sekolah_id: 1, periode: '2026/2027 Ganjil', tahun: 2026, semester: 'Genap', status: 'Disetujui', file_sptjm: 'SPTJM_2026_Genap.pdf' }
+            ],
+            pesan: [
+                { id: 1, sekolah_id: 1, periode: '2026/2027 Ganjil', judul: 'Peringatan Akreditasi', isi: 'Mohon perbarui file SK Akreditasi karena scan sebelumnya terpotong.', status: 'Unread', waktu: '05/05/2026 10:00:00' }
+            ],
+            announcements: [
+                { id: 1, judul: 'Pendataan Semester Genap Dibuka', isi: 'Harap seluruh sekolah segera memutakhirkan data sarpras sebelum 30 Mei 2026.', waktu: '06/05/2026' }
+            ],
+            logs: [
+                { id: 1, waktu: '06/05/2026 08:00:00', user: 'superadmin (super_admin)', aksi: 'Sistem Terinisialisasi' }
+            ]
+        };
+
+        const schemas = {
+            schools: {
+                title: 'Data Identitas Sekolah', table: 'schools', icon: 'fa-school',
+                fields: [
+                    { name: 'jenjang', label: 'Jenjang', type: 'select', options: ['SD', 'SMP'], required: true },
+                    { name: 'npsn', label: 'NPSN', type: 'text', required: true, unique: true, minLength: 8, maxLength: 8, title: 'NPSN harus 8 digit angka' },
+                    { name: 'nama', label: 'Nama Sekolah', type: 'text', required: true },
+                    { name: 'kepsek', label: 'Nama Kepala Sekolah', type: 'text', required: true },
+                    { name: 'nip', label: 'NIP Kepsek', type: 'text', minLength: 18, maxLength: 18, title: 'NIP harus 18 digit angka' },
+                    { name: 'status_kepsek', label: 'Status Kepsek', type: 'select', options: ['Definitif', 'Plt'] },
+                    { name: 'alamat', label: 'Alamat', type: 'textarea' },
+                    { name: 'latitude', label: 'Titik Koordinat (Latitude)', type: 'text' },
+                    { name: 'longitude', label: 'Titik Koordinat (Longitude)', type: 'text' },
+                    { name: 'luas_lahan', label: 'Luas Lahan (m2)', type: 'number', min: 0 },
+                    { name: 'status_lahan', label: 'Status Lahan', type: 'select', options: ['Milik Pemda', 'Sewa', 'Hibah', 'Lainnya'] },
+                    { name: 'file_bukti_lahan', label: 'Bukti Kepemilikan Lahan (PDF/Img)', type: 'file', accept: '.pdf,.jpg,.png' }
+                ]
+            },
+            gtk: {
+                title: 'Data Guru & Tenaga Kependidikan', table: 'gtk', icon: 'fa-users',
+                fields: [
+                    { name: 'nama', label: 'Nama Lengkap', type: 'text', required: true },
+                    { name: 'nip', label: 'NIP (Jika Ada)', type: 'text', minLength: 18, maxLength: 18, unique: true, title: 'NIP harus 18 digit angka' },
+                    { name: 'nuptk', label: 'NUPTK', type: 'text', minLength: 16, maxLength: 16, unique: true, title: 'NUPTK harus 16 digit angka' },
+                    { name: 'jk', label: 'Jenis Kelamin', type: 'select', options: ['L', 'P'] },
+                    { name: 'pendidikan', label: 'Pendidikan Terakhir', type: 'select', options: ['SMA/Sederajat', 'D3', 'S1', 'S2', 'S3'] },
+                    { name: 'status', label: 'Status Kepegawaian', type: 'select', options: ['PNS', 'PPPK', 'PPPK Paruh Waktu', 'GTY', 'Honorer'] },
+                    { name: 'mapel', label: 'Mata Pelajaran', type: 'text' },
+                    { name: 'sertifikasi', label: 'Sertifikasi', type: 'select', options: ['Ya', 'Tidak'] },
+                    { name: 'jam', label: 'Jam Mengajar (JTM)', type: 'number', min: 0 }
+                ]
+            },
+            siswa: {
+                title: 'Data Rekap Siswa', table: 'siswa', icon: 'fa-children',
+                fields: [
+                    { name: 'kelas', label: 'Kelas', type: 'select', options: ['1','2','3','4','5','6','7', '8', '9'], required: true },
+                    { name: 'total_l', label: 'Jumlah Laki-laki', type: 'number', required: true, min: 0 },
+                    { name: 'total_p', label: 'Jumlah Perempuan', type: 'number', required: true, min: 0 },
+                    { name: 'total_siswa', label: 'Total Siswa (L+P)', type: 'number', readonly: true },
+                    { name: 'mutasi_in', label: 'Mutasi Masuk', type: 'number', min: 0 },
+                    { name: 'mutasi_out', label: 'Mutasi Keluar', type: 'number', min: 0 },
+                    { name: 'putus', label: 'Putus Sekolah', type: 'number', min: 0 }
+                ]
+            },
+            gedung: {
+                title: 'Data Sarana Gedung/Ruangan', table: 'gedung', icon: 'fa-building',
+                fields: [
+                    { name: 'jenis', label: 'Jenis Ruang', type: 'select', options: ['Ruang Kelas', 'Perpustakaan', 'Ruang Kepala Sekolah', 'Ruang TU/Administrasi', 'Ruang Kepsek/Guru/TU', 'Lab IPA', 'Lab Komputer', 'UKS', 'Ruang Guru', 'Aula', 'Rumah Dinas', 'Asrama', 'Toilet Guru', 'Toilet Siswa'] },
+                    { name: 'kondisi', label: 'Kondisi', type: 'select', options: ['Baik', 'Rusak Ringan', 'Rusak Sedang', 'Rusak Berat'] },
+                    { name: 'jumlah', label: 'Jumlah Unit', type: 'number', required: true, min: 0 },
+                    { name: 'catatan', label: 'Catatan Kerusakan', type: 'textarea' },
+                    { name: 'file_foto', label: 'Upload Foto (JPG/PNG)', type: 'file', accept: '.jpg,.jpeg,.png' },
+                    { name: 'status_verifikasi', label: 'Status Verifikasi', type: 'select', options: ['Menunggu', 'Valid', 'Ditolak'], readonly: true }
+                ]
+            },
+            meubeler: {
+                title: 'Data Meubeler', table: 'meubeler', icon: 'fa-chair',
+                fields: [
+                    { name: 'jenis', label: 'Jenis Barang', type: 'select', options: ['Meja Siswa', 'Kursi Siswa', 'Meja Guru', 'Kursi Guru', 'Lemari Kelas', 'Papan Tulis', 'Rak Buku', 'Lainnya'], required: true },
+                    { name: 'kondisi', label: 'Kondisi', type: 'select', options: ['Baik', 'Rusak Ringan', 'Rusak Sedang', 'Rusak Berat'] },
+                    { name: 'jumlah', label: 'Jumlah Tersedia', type: 'number', required: true, min: 0 },
+                    { name: 'kebutuhan', label: 'Jumlah Kebutuhan Baru', type: 'number', min: 0 },
+                    { name: 'perbaikan', label: 'Jumlah Perlu Perbaikan', type: 'number', min: 0 },
+                    { name: 'file_foto', label: 'Upload Foto (JPG/PNG)', type: 'file', accept: '.jpg,.jpeg,.png' }
+                ]
+            },
+            peralatan_it: {
+                title: 'Data Peralatan IT', table: 'peralatan_it', icon: 'fa-computer',
+                fields: [
+                    { name: 'jenis', label: 'Jenis Perangkat', type: 'select', options: ['Chromebook', 'PC Desktop', 'Laptop', 'Tablet', 'Monitor', 'Proyektor', 'Smart Board', 'Interactive Flat Panel (IFP)', 'Hardisk', 'Televisi', 'Parabola', 'Kamera', 'Starlink', 'Router/AP', 'Server Sekolah', 'Modem', 'Printer', 'Scanner', 'Speaker', 'Webcam', 'CCTV', 'UPS', 'Toa', 'Bel Sekolah Otomatis'], required: true },
+                    { name: 'sumber', label: 'Sumber Pengadaan', type: 'select', options: ['Pusat', 'Daerah', 'Dana BOS'], required: true },
+                    { name: 'kondisi', label: 'Kondisi', type: 'select', options: ['Baik', 'Rusak Ringan', 'Rusak Sedang', 'Rusak Berat'] },
+                    { name: 'jumlah', label: 'Jumlah Tersedia', type: 'number', required: true, min: 0 },
+                    { name: 'file_foto', label: 'Upload Foto (JPG/PNG)', type: 'file', accept: '.jpg,.jpeg,.png' }
+                ]
+            },
+            ensiklopedia: {
+                title: 'Data Ensiklopedia', table: 'ensiklopedia', icon: 'fa-book-atlas',
+                fields: [
+                    { name: 'jenis_buku', label: 'Jenis Buku', type: 'select', options: ['Buku Teks', 'Buku Non-Teks'], required: true },
+                    { name: 'kondisi', label: 'Kondisi', type: 'select', options: ['Baik', 'Rusak Ringan', 'Rusak Sedang', 'Rusak Berat'], required: true },
+                    { name: 'jumlah', label: 'Jumlah (Eks)', type: 'number', required: true, min: 0 },
+                    { name: 'sumber', label: 'Sumber Pengadaan', type: 'select', options: ['Pusat', 'Daerah', 'Dana BOS', 'Hibah/Sumbangan', 'Lainnya'], required: true },
+                    { name: 'file_foto', label: 'Upload Foto (JPG/PNG)', type: 'file', accept: '.jpg,.jpeg,.png' }
+                ]
+            },
+            pip: {
+                title: 'Data Program Indonesia Pintar (PIP)', table: 'pip', icon: 'fa-hand-holding-dollar',
+                fields: [
+                    { name: 'kelas', label: 'Kelas', type: 'select', options: ['1','2','3','4','5','6','7', '8', '9'], required: true },
+                    { name: 'tahun', label: 'Tahun Anggaran', type: 'number', required: true, min: 2000 },
+                    { name: 'usulan', label: 'Jumlah Diusulkan', type: 'number', required: true, min: 0 },
+                    { name: 'penerima', label: 'Jumlah Menerima', type: 'number', required: true, min: 0 },
+                    { name: 'selisih', label: 'Belum Menerima / Selisih', type: 'number', readonly: true },
+                    { name: 'nominal_cair', label: 'Total Nominal Cair (Rp)', type: 'number', isCurrency: true, min: 0 },
+                    { name: 'keterangan', label: 'Kendala / Keterangan', type: 'textarea' }
+                ]
+            },
+            bos: {
+                title: 'Data Bantuan Operasional Sekolah (BOS)', table: 'bos', icon: 'fa-money-bill-wave',
+                fields: [
+                    { name: 'tahun', label: 'Tahun Anggaran', type: 'number', required: true, min: 2000 },
+                    { name: 'alokasi_total', label: 'Total Pagu 1 Tahun (Rp)', type: 'number', required: true, isCurrency: true, min: 0 },
+                    { name: 'tahap1_jumlah', label: 'Cair Tahap 1 (Rp)', type: 'number', required: true, isCurrency: true, min: 0 },
+                    { name: 'tahap1_status', label: 'Status Tahap 1', type: 'select', options: ['Belum Diajukan', 'Proses', 'Sudah Cair'] },
+                    { name: 'tahap2_jumlah', label: 'Cair Tahap 2 (Rp)', type: 'number', required: true, isCurrency: true, min: 0 },
+                    { name: 'tahap2_status', label: 'Status Tahap 2', type: 'select', options: ['Belum Diajukan', 'Proses', 'Sudah Cair'] },
+                    { name: 'penggunaan_dana', label: 'Total Realisasi / Terpakai (Rp)', type: 'number', isCurrency: true, min: 0 },
+                    { name: 'sisa_dana', label: 'Sisa Dana (Rp)', type: 'number', isCurrency: true, readonly: true },
+                    { name: 'file_rkas', label: 'Upload RKAS (PDF)', type: 'file', accept: '.pdf' },
+                    { name: 'file_lpj', label: 'Upload LPJ (PDF/ZIP)', type: 'file', accept: '.pdf,.zip' }
+                ]
+            },
+            akreditasi: {
+                title: 'Data Akreditasi Sekolah', table: 'akreditasi', icon: 'fa-certificate',
+                fields: [
+                    { name: 'tahun', label: 'Tahun Akreditasi', type: 'number', required: true, min: 2000 },
+                    { name: 'nilai', label: 'Nilai Akhir', type: 'number', required: true, min: 0, max: 100 },
+                    { name: 'peringkat', label: 'Peringkat', type: 'select', options: ['A', 'B', 'C', 'Tidak Terakreditasi'], required: true },
+                    { name: 'no_sk', label: 'No. SK Penetapan', type: 'text', required: true },
+                    { name: 'tanggal_sk', label: 'Tanggal SK', type: 'date', required: true },
+                    { name: 'lembaga', label: 'Lembaga Akreditasi', type: 'text' },
+                    { name: 'file_sk', label: 'Upload SK (PDF/Img)', type: 'file', accept: '.pdf,.jpg,.png' }
+                ]
+            },
+            sptjm: {
+                title: 'Surat Pernyataan (SPTJM)', table: 'sptjm', icon: 'fa-file-signature',
+                fields: [
+                    { name: 'tahun', label: 'Tahun', type: 'number', required: true, min: 2020 },
+                    { name: 'semester', label: 'Semester', type: 'select', options: ['Ganjil', 'Genap'], required: true },
+                    { name: 'file_sptjm', label: 'Upload File SPTJM (PDF)', type: 'file', accept: '.pdf', required: true },
+                    { name: 'status', label: 'Status Verifikasi', type: 'select', options: ['Menunggu', 'Disetujui', 'Ditolak'], readonly: true }
+                ]
+            },
+            pesan: {
+                title: 'Pesan & Teguran', table: 'pesan', icon: 'fa-envelope',
+                fields: [
+                    { name: 'sekolah_id', label: 'Sekolah Tujuan', type: 'select_sekolah', required: true },
+                    { name: 'judul', label: 'Judul Pesan', type: 'text', required: true },
+                    { name: 'isi', label: 'Isi Pesan', type: 'textarea', required: true },
+                    { name: 'status', label: 'Status', type: 'select', options: ['Unread', 'Read'], readonly: true },
+                    { name: 'waktu', label: 'Waktu Pengiriman', type: 'text', readonly: true }
+                ]
+            },
+            announcements: {
+                title: 'Manajemen Pengumuman', table: 'announcements', icon: 'fa-bullhorn',
+                fields: [
+                    { name: 'judul', label: 'Judul Pengumuman', type: 'text', required: true },
+                    { name: 'isi', label: 'Isi Pengumuman', type: 'textarea', required: true },
+                    { name: 'waktu', label: 'Tanggal Dibuat', type: 'text', readonly: true }
+                ]
+            },
+            users: {
+                title: 'Manajemen User', table: 'users', icon: 'fa-user-shield',
+                fields: [
+                    { name: 'username', label: 'Username', type: 'text', required: true, unique: true },
+                    { name: 'password', label: 'Password', type: 'text', required: true },
+                    { name: 'role', label: 'Role', type: 'select', options: ['super_admin', 'admin_sd', 'admin_smp', 'user'], required: true },
+                    { name: 'nama_sekolah', label: 'Nama Sekolah/Instansi', type: 'text', required: true },
+                    { name: 'sekolah_id', label: 'ID Sekolah (Khusus User)', type: 'number' }
+                ]
+            },
+            logs: {
+                title: 'Log Aktivitas Sistem', table: 'logs', icon: 'fa-history',
+                fields: [
+                    { name: 'waktu', label: 'Waktu', type: 'text', readonly: true },
+                    { name: 'user', label: 'Pengguna', type: 'text', readonly: true },
+                    { name: 'aksi', label: 'Aktivitas', type: 'text', readonly: true }
+                ]
+            }
+        };
+
+        const menus = [
+            { id: 'dashboard', label: 'Dashboard', icon: 'fa-chart-pie', roles: ['super_admin', 'admin_sd', 'admin_smp', 'user'] },
+            { id: 'peta', label: 'Peta Sebaran', icon: 'fa-map-location-dot', roles: ['super_admin', 'admin_sd', 'admin_smp', 'user'] },
+            { id: 'schools', label: 'Data Identitas', icon: 'fa-school', roles: ['super_admin', 'admin_sd', 'admin_smp', 'user'] },
+            { id: 'gtk', label: 'Data GTK', icon: 'fa-users', roles: ['super_admin', 'admin_sd', 'admin_smp', 'user'] },
+            { id: 'siswa', label: 'Data Siswa', icon: 'fa-children', roles: ['super_admin', 'admin_sd', 'admin_smp', 'user'] },
+            { id: 'gedung', label: 'Data Gedung', icon: 'fa-building', roles: ['super_admin', 'admin_sd', 'admin_smp', 'user'] },
+            { id: 'meubeler', label: 'Data Meubeler', icon: 'fa-chair', roles: ['super_admin', 'admin_sd', 'admin_smp', 'user'] },
+            { id: 'peralatan_it', label: 'Data Peralatan IT', icon: 'fa-computer', roles: ['super_admin', 'admin_sd', 'admin_smp', 'user'] },
+            { id: 'ensiklopedia', label: 'Ensiklopedia', icon: 'fa-book-atlas', roles: ['super_admin', 'admin_sd', 'admin_smp', 'user'] },
+            { id: 'pip', label: 'Data PIP', icon: 'fa-hand-holding-dollar', roles: ['super_admin', 'admin_sd', 'admin_smp', 'user'] },
+            { id: 'bos', label: 'Data BOS', icon: 'fa-money-bill-wave', roles: ['super_admin', 'admin_sd', 'admin_smp', 'user'] },
+            { id: 'akreditasi', label: 'Data Akreditasi', icon: 'fa-certificate', roles: ['super_admin', 'admin_sd', 'admin_smp', 'user'] },
+            { id: 'sptjm', label: 'Dokumen SPTJM', icon: 'fa-file-signature', roles: ['super_admin', 'admin_sd', 'admin_smp', 'user'] },
+            { id: 'pesan', label: 'Pesan & Teguran', icon: 'fa-envelope', roles: ['super_admin', 'admin_sd', 'admin_smp', 'user'] },
+            { id: 'announcements', label: 'Pengumuman', icon: 'fa-bullhorn', roles: ['super_admin', 'admin_sd', 'admin_smp'] },
+            { id: 'users', label: 'Manajemen User', icon: 'fa-user-shield', roles: ['super_admin'] },
+            { id: 'pengaturan', label: 'Pengaturan Sistem', icon: 'fa-sliders', roles: ['super_admin'] }, 
+            { id: 'logs', label: 'Log Aktivitas', icon: 'fa-history', roles: ['super_admin'] },
+            { id: 'bantuan', label: 'Pusat Bantuan', icon: 'fa-circle-question', roles: ['super_admin', 'admin_sd', 'admin_smp', 'user'] }
+        ];
+
+        window.onload = () => {
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById('current-date').textContent = new Date().toLocaleDateString('id-ID', options);
+            document.getElementById('cetak-tanggal').textContent = new Date().toLocaleDateString('id-ID', options);
+            
+            initAuth();
+
+            // Setup Mobile Menu Toggles
+            document.getElementById('mobile-menu-btn').addEventListener('click', toggleSidebar);
+            document.getElementById('close-sidebar-btn').addEventListener('click', toggleSidebar);
+            document.getElementById('mobile-overlay').addEventListener('click', toggleSidebar);
+        };
+
+        // ==========================================
+        // 3. LOGIKA AUTHENTICATION (SUPABASE AUTH)
+        // ==========================================
+        async function initAuth() {
+            if (useMockData) {
+                // Gunakan LocalStorage jika MockDB aktif
+                let storedUser = JSON.parse(localStorage.getItem('sipas_user'));
+                if (storedUser) {
+                    if (storedUser.role === 'admin') { storedUser.role = 'super_admin'; localStorage.setItem('sipas_user', JSON.stringify(storedUser)); }
+                    currentUser = storedUser;
+                    initApp();
+                } else {
+                    document.getElementById('login-screen').classList.remove('hidden');
+                }
+            } else {
+                // Gunakan Session JWT Resmi Supabase jika Produksi
+                const { data: { session } } = await supabaseClient.auth.getSession();
+                if (session) {
+                    await fetchUserProfile(session.user);
+                } else {
+                    document.getElementById('login-screen').classList.remove('hidden');
+                }
+
+                // Dengarkan perubahan status login
+                supabaseClient.auth.onAuthStateChange(async (event, session) => {
+                    if (event === 'SIGNED_IN' && !currentUser) {
+                        await fetchUserProfile(session.user);
+                    } else if (event === 'SIGNED_OUT') {
+                        currentUser = null;
+                        document.getElementById('app-screen').classList.add('hidden');
+                        document.getElementById('login-screen').classList.remove('hidden');
+                    }
+                });
+            }
+        }
+
+        async function fetchUserProfile(authUser) {
+            try {
+                // Ambil role dan data ekstra dari tabel public user_profiles
+                const { data: profile, error } = await supabaseClient
+                    .from('user_profiles')
+                    .select('*')
+                    .eq('id', authUser.id)
+                    .single();
+                
+                if (error) throw error;
+                
+                currentUser = { 
+                    id: authUser.id, 
+                    email: authUser.email,
+                    ...profile 
+                };
+                initApp();
+            } catch (err) {
+                console.error("Gagal menarik profil user:", err);
+                Swal.fire('Error Database', 'Profil user tidak ditemukan di database. Hubungi Super Admin.', 'error');
+                await supabaseClient.auth.signOut();
+            }
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const u = document.getElementById('username').value;
+            const p = document.getElementById('password').value;
+            const loader = document.getElementById('login-loader');
+            const errorEl = document.getElementById('login-error');
+            
+            loader.classList.remove('hidden'); 
+            errorEl.classList.add('hidden');
+
+            if (useMockData) {
+                // LOGIKA MOCK DB LAMA
+                setTimeout(() => {
+                    const user = mockDB.users.find(x => x.username === u && x.password === p);
+                    loader.classList.add('hidden');
+                    if (user) { 
+                        currentUser = user; 
+                        if(currentUser.role === 'admin') currentUser.role = 'super_admin';
+                        localStorage.setItem('sipas_user', JSON.stringify(currentUser)); 
+                        initApp(); 
+                        logActivity('Login ke sistem');
+                    } else errorEl.classList.remove('hidden');
+                }, 800);
+            } else {
+                // LOGIKA SUPABASE AUTHENTICATION (PRODUKSI)
+                try {
+                    const { data, error } = await supabaseClient.auth.signInWithPassword({
+                        email: u,
+                        password: p
+                    });
+                    
+                    if (error) throw error;
+                    logActivity('Login ke sistem');
+                    // initApp akan otomatis dipanggil oleh onAuthStateChange
+                } catch (err) {
+                    loader.classList.add('hidden');
+                    errorEl.textContent = "Gagal masuk: " + err.message;
+                    errorEl.classList.remove('hidden');
+                }
+            }
+        }
+
+        async function handleLogout(isAuto = false) {
+            if (currentUser) logActivity('Logout dari sistem');
+            
+            if (useMockData) {
+                localStorage.removeItem('sipas_user');
+                if (isAuto) {
+                    Swal.fire({ title: 'Sesi Habis', text: 'Auto-logout 30 menit.', icon: 'warning' }).then(() => window.location.reload());
+                } else window.location.reload();
+            } else {
+                await supabaseClient.auth.signOut(); // Ini akan memicu onAuthStateChange SIGNED_OUT
+                if (isAuto) Swal.fire({ title: 'Sesi Habis', text: 'Auto-logout 30 menit.', icon: 'warning' });
+            }
+        }
+
+        // ==========================================
+        // 4. CORE APP LOGIC
+        // ==========================================
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobile-overlay');
+            sidebar.classList.toggle('-translate-x-full');
+            overlay.classList.toggle('hidden');
+        }
+
+        async function loadSystemSettings() {
+            if (useMockData) {
+                appSettings = mockDB.system_settings;
+            } else {
+                try {
+                    const { data } = await supabaseClient.from('system_settings').select('*').eq('id', 1).single();
+                    if (data) appSettings = data;
+                } catch(e) {
+                    console.log("Menggunakan setting default.");
+                }
+            }
+            updateHeaderStatus();
+        }
+
+        function updateHeaderStatus() {
+            const statusEl = document.getElementById('header-system-status');
+            if (statusEl && appSettings) {
+                if (appSettings.is_locked) {
+                    statusEl.innerHTML = `<span class="bg-red-100 text-red-800 text-xs font-bold px-3 py-1.5 rounded border border-red-200"><i class="fa-solid fa-lock mr-1"></i> Terkunci (${appSettings.periode})</span>`;
+                } else {
+                    statusEl.innerHTML = `<span class="bg-green-100 text-green-800 text-xs font-bold px-3 py-1.5 rounded border border-green-200"><i class="fa-solid fa-lock-open mr-1"></i> Terbuka (${appSettings.periode})</span>`;
+                }
+            }
+        }
+
+        async function updateMessageNotification() {
+            if(!currentUser) return;
+            const badge = document.getElementById('notif-badge');
+            if(!badge) return;
+            
+            try {
+                let unreadCount = 0;
+                if(useMockData) {
+                    if(currentUser.role === 'user') {
+                        unreadCount = mockDB.pesan.filter(p => p.sekolah_id === currentUser.sekolah_id && p.status === 'Unread' && p.periode === appSettings.periode).length;
+                    }
+                } else {
+                    if(currentUser.role === 'user') {
+                        const { data } = await supabaseClient.from('pesan').select('id').eq('sekolah_id', currentUser.sekolah_id).eq('status', 'Unread').eq('periode', appSettings.periode);
+                        unreadCount = data ? data.length : 0;
+                    }
+                }
+                
+                if(unreadCount > 0) {
+                    badge.textContent = unreadCount;
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+            } catch(e) {}
+        }
+
+        function initIdleTimeout() {
+            setInterval(() => {
+                idleTime++;
+                if (idleTime >= IDLE_LIMIT) handleLogout(true); 
+            }, 60000);
+
+            const resetIdle = () => idleTime = 0;
+            window.addEventListener('mousemove', resetIdle);
+            window.addEventListener('keypress', resetIdle);
+            window.addEventListener('click', resetIdle);
+            window.addEventListener('scroll', resetIdle);
+            window.addEventListener('touchstart', resetIdle);
+        }
+
+        async function logActivity(aksi) {
+            const payload = {
+                waktu: new Date().toLocaleString('id-ID'),
+                user: `${currentUser.nama_sekolah || currentUser.username || currentUser.email} (${currentUser.role})`,
+                aksi: aksi
+            };
+            if (useMockData) {
+                if(!mockDB.logs) mockDB.logs = [];
+                mockDB.logs.unshift(payload); 
+            } else {
+                await supabaseClient.from('logs').insert([payload]);
+            }
+        }
+
+        async function initApp() {
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('login-loader').classList.add('hidden');
+            document.getElementById('app-screen').classList.remove('hidden');
+            
+            const displayNama = currentUser.nama_sekolah || currentUser.username || currentUser.email.split('@')[0];
+            document.getElementById('sidebar-user-name').textContent = displayNama;
+            document.getElementById('sidebar-user-role').textContent = `Role: ${currentUser.role.replace('_', ' ').toUpperCase()}`;
+            document.getElementById('user-initial').textContent = displayNama.charAt(0).toUpperCase();
+            
+            await loadSystemSettings(); 
+            initIdleTimeout();
+            renderSidebar();
+            updateMessageNotification();
+            loadPage('dashboard');
+        }
+
+        function renderSidebar() {
+            const menuContainer = document.getElementById('sidebar-menu');
+            menuContainer.innerHTML = '';
+            menus.forEach(menu => {
+                if (menu.roles.includes(currentUser.role)) {
+                    const btn = document.createElement('button');
+                    btn.className = `w-full flex items-center px-6 py-3 text-left hover:bg-dinas-800 transition menu-btn`;
+                    btn.id = `menu-${menu.id}`;
+                    btn.onclick = () => loadPage(menu.id);
+                    btn.innerHTML = `<i class="fa-solid ${menu.icon} w-6 text-center mr-3 text-blue-300"></i> <span class="text-sm font-medium">${menu.label}</span>`;
+                    menuContainer.appendChild(btn);
+                }
+            });
+        }
+
+        function loadPage(menuId) {
+            currentMenu = menuId;
+            document.querySelectorAll('.menu-btn').forEach(btn => btn.classList.remove('bg-dinas-800', 'border-l-4', 'border-blue-400'));
+            const activeBtn = document.getElementById(`menu-${menuId}`);
+            if(activeBtn) activeBtn.classList.add('bg-dinas-800', 'border-l-4', 'border-blue-400');
+            const title = menus.find(m => m.id === menuId).label;
+            document.getElementById('page-title').textContent = title;
+            const content = document.getElementById('dynamic-content');
+            const loader = document.getElementById('content-loader');
+            
+            content.innerHTML = '';
+            content.classList.add('hidden');
+            loader.classList.remove('hidden');
+            
+            if (mapInstance) { mapInstance.remove(); mapInstance = null; }
+            updateMessageNotification();
+
+            if (window.innerWidth < 768) {
+                const sidebar = document.getElementById('sidebar');
+                const overlay = document.getElementById('mobile-overlay');
+                if(!sidebar.classList.contains('-translate-x-full')){
+                    sidebar.classList.add('-translate-x-full');
+                    overlay.classList.add('hidden');
+                }
+            }
+
+            setTimeout(() => {
+                loader.classList.add('hidden');
+                content.classList.remove('hidden');
+                
+                if (menuId === 'dashboard') renderDashboard();
+                else if (menuId === 'peta') renderMap();
+                else if (menuId === 'pengaturan') renderSystemSettings(); 
+                else if (menuId === 'bantuan') renderHelpdesk();
+                else if (schemas[menuId]) renderDataTable(menuId);
+            }, 500);
+        }
+
+        // ==========================================
+        // FITUR BARU: RENDER SYSTEM SETTINGS (ADMIN)
+        // ==========================================
+        function renderSystemSettings() {
+            const content = document.getElementById('dynamic-content');
+            content.innerHTML = `
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-8 max-w-3xl mx-auto">
+                <div class="mb-8 border-b pb-4 flex justify-between items-center">
+                    <div>
+                        <h2 class="text-xl font-bold text-gray-800"><i class="fa-solid fa-sliders text-blue-500 mr-2"></i> Pengaturan Global Sistem</h2>
+                        <p class="text-sm text-gray-500">Konfigurasi ini akan berdampak pada seluruh pengguna (Sekolah).</p>
+                    </div>
+                </div>
+                
+                <form id="settings-form" onsubmit="saveSystemSettings(event)">
+                    <div class="mb-6">
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Tahun Ajaran / Periode Aktif</label>
+                        <input type="text" id="setting-periode" value="${appSettings.periode}" class="w-full p-3 border border-gray-300 rounded focus:ring-2 focus:ring-dinas-500 focus:outline-none" required placeholder="Contoh: 2026/2027 Ganjil">
+                        <p class="text-xs text-gray-500 mt-1">Mengubah periode akan menampilkan tabel kosong yang siap diisi untuk periode baru, sementara data lama tersimpan sebagai arsip.</p>
+                    </div>
+
+                    <div class="mb-8 p-6 bg-gray-50 border border-gray-200 rounded-lg">
+                        <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                            <div>
+                                <h3 class="font-bold text-gray-800 mb-1">Status Kunci Pendataan (Global Lockout)</h3>
+                                <p class="text-sm text-gray-600 max-w-lg">Jika opsi ini diaktifkan (Terkunci), seluruh sekolah <b>tidak akan bisa menambah, mengubah, atau menghapus</b> data apapun pada periode berjalan.</p>
+                            </div>
+                            <div>
+                                <select id="setting-lock" class="p-2 border font-bold rounded focus:outline-none ${appSettings.is_locked ? 'border-red-500 text-red-700 bg-red-50' : 'border-green-500 text-green-700 bg-green-50'}">
+                                    <option value="false" ${!appSettings.is_locked ? 'selected' : ''}>TERBUKA</option>
+                                    <option value="true" ${appSettings.is_locked ? 'selected' : ''}>TERKUNCI</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end">
+                        <button type="submit" class="px-6 py-2.5 bg-dinas-800 text-white font-bold rounded hover:bg-dinas-900 transition flex items-center shadow-lg">
+                            <i class="fa-solid fa-save mr-2"></i> Simpan Konfigurasi
+                        </button>
+                    </div>
+                </form>
+            </div>`;
+
+            document.getElementById('setting-lock').addEventListener('change', function() {
+                if(this.value === 'true') {
+                    this.className = 'p-2 border font-bold rounded focus:outline-none border-red-500 text-red-700 bg-red-50';
+                } else {
+                    this.className = 'p-2 border font-bold rounded focus:outline-none border-green-500 text-green-700 bg-green-50';
+                }
+            });
+        }
+
+        async function saveSystemSettings(e) {
+            e.preventDefault();
+            const newPeriode = document.getElementById('setting-periode').value;
+            const newLock = document.getElementById('setting-lock').value === 'true';
+
+            const payload = { periode: newPeriode, is_locked: newLock };
+
+            if (useMockData) {
+                mockDB.system_settings = { ...mockDB.system_settings, ...payload };
+                appSettings = mockDB.system_settings;
+                logActivity(`Mengubah pengaturan sistem (Periode: ${newPeriode}, Lock: ${newLock})`);
+                Swal.fire('Berhasil!', 'Konfigurasi sistem berhasil diperbarui.', 'success').then(() => { window.location.reload(); });
+            } else {
+                const { error } = await supabaseClient.from('system_settings').update(payload).eq('id', 1);
+                if (error) {
+                    Swal.fire('Error!', error.message, 'error');
+                } else {
+                    appSettings = payload;
+                    logActivity(`Mengubah pengaturan sistem (Periode: ${newPeriode}, Lock: ${newLock})`);
+                    Swal.fire('Berhasil!', 'Konfigurasi sistem berhasil diperbarui.', 'success').then(() => { window.location.reload(); });
+                }
+            }
+        }
+
+        async function renderMap() {
+            const content = document.getElementById('dynamic-content');
+            content.innerHTML = `
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 h-full min-h-[500px] flex flex-col">
+                    <div class="mb-4">
+                        <h3 class="text-lg font-bold text-gray-800">Peta Sebaran Sekolah</h3>
+                        <p class="text-sm text-gray-500">Visualisasi geospasial lokasi sekolah di Kabupaten Manggarai Barat.</p>
+                    </div>
+                    <div id="leaflet-map" class="flex-1 rounded border border-gray-300 min-h-[400px]"></div>
+                </div>
+            `;
+            const schools = await fetchTableData('schools');
+            mapInstance = L.map('leaflet-map').setView([-8.496, 119.882], 12);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(mapInstance);
+            schools.forEach(s => {
+                if (s.latitude && s.longitude) {
+                    const lat = parseFloat(s.latitude);
+                    const lng = parseFloat(s.longitude);
+                    if(!isNaN(lat) && !isNaN(lng)) L.marker([lat, lng]).addTo(mapInstance).bindPopup(`<b>${s.nama}</b><br>NPSN: ${s.npsn}<br>Jenjang: ${s.jenjang || '-'}<br>${s.alamat || ''}`);
+                }
+            });
+        }
+
+        function renderHelpdesk() {
+            const content = document.getElementById('dynamic-content');
+            content.innerHTML = `
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-8 max-w-4xl mx-auto">
+                <div class="text-center mb-8 border-b pb-6">
+                    <i class="fa-solid fa-headset text-5xl text-blue-500 mb-4"></i>
+                    <h2 class="text-2xl font-bold text-gray-800">Pusat Bantuan SIPENAS</h2>
+                    <p class="text-gray-500">Panduan Penggunaan dan Kontak Layanan Dinas</p>
+                </div>
+                
+                <div class="mb-8">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4"><i class="fa-solid fa-book text-blue-500 mr-2"></i> Panduan Pengguna (User Manual)</h3>
+                    <div class="p-4 bg-blue-50 border border-blue-100 rounded flex justify-between items-center">
+                        <div>
+                            <p class="font-semibold text-blue-900">Buku Panduan Operator Sekolah v1.0</p>
+                            <p class="text-xs text-blue-700">PDF, 2.5 MB</p>
+                        </div>
+                        <button onclick="Swal.fire('Info', 'Fitur unduh dokumen panduan akan tersedia pada rilis berikutnya.', 'info')" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm transition shadow"><i class="fa-solid fa-download mr-2"></i> Unduh PDF</button>
+                    </div>
+                </div>
+
+                <div class="mb-8">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4"><i class="fa-solid fa-circle-question text-green-500 mr-2"></i> Pertanyaan Umum (FAQ)</h3>
+                    <div class="space-y-3 text-sm">
+                        <details class="group bg-gray-50 border border-gray-200 rounded p-4 cursor-pointer">
+                            <summary class="font-semibold text-gray-800 list-none flex justify-between items-center">
+                                Mengapa saya tidak bisa menambah/mengubah data? Tombolnya hilang!
+                                <span class="transition group-open:rotate-180"><i class="fa-solid fa-chevron-down"></i></span>
+                            </summary>
+                            <p class="text-gray-600 mt-3 pt-3 border-t border-gray-200">Jika tombol Tambah/Edit hilang dan terdapat peringatan merah di atas tabel, itu berarti Admin Dinas telah <b>Menutup (Mengunci)</b> masa pendataan untuk periode berjalan. Hubungi Admin jika Anda memiliki revisi mendesak.</p>
+                        </details>
+                        <details class="group bg-gray-50 border border-gray-200 rounded p-4 cursor-pointer">
+                            <summary class="font-semibold text-gray-800 list-none flex justify-between items-center">
+                                Apa fungsi menu Sinkron Dapodik?
+                                <span class="transition group-open:rotate-180"><i class="fa-solid fa-chevron-down"></i></span>
+                            </summary>
+                            <p class="text-gray-600 mt-3 pt-3 border-t border-gray-200">Menu ini memudahkan Anda mengimpor format excel unduhan langsung dari Dapodik agar Anda tidak perlu mengetik satu-satu data GTK/Siswa lagi di SIPENAS.</p>
+                        </details>
+                        <details class="group bg-gray-50 border border-gray-200 rounded p-4 cursor-pointer">
+                            <summary class="font-semibold text-gray-800 list-none flex justify-between items-center">
+                                Apa itu menu Upload SPTJM?
+                                <span class="transition group-open:rotate-180"><i class="fa-solid fa-chevron-down"></i></span>
+                            </summary>
+                            <p class="text-gray-600 mt-3 pt-3 border-t border-gray-200">Surat Pernyataan Tanggung Jawab Mutlak (SPTJM) adalah dokumen legalitas bahwa data yang Anda entri sudah valid. Cetak formatnya, minta tanda tangan Kepala Sekolah + Materai, scan menjadi PDF, lalu unggah pada menu tersebut setiap semesternya.</p>
+                        </details>
+                    </div>
+                </div>
+                
+                <div>
+                    <h3 class="text-lg font-bold text-gray-800 mb-4"><i class="fa-solid fa-envelope text-orange-500 mr-2"></i> Kontak Layanan</h3>
+                    <p class="text-sm text-gray-600 mb-2">Jika Anda mengalami kendala teknis yang tidak ada di FAQ, hubungi Helpdesk kami:</p>
+                    <ul class="text-sm text-gray-800 space-y-2 font-medium">
+                        <li><i class="fa-brands fa-whatsapp text-green-500 w-5"></i> WA Center: 0812-3456-7890 (Jam Kerja)</li>
+                        <li><i class="fa-solid fa-envelope text-red-500 w-5"></i> Email: admin.sipenas@manggaraibaratkab.go.id</li>
+                    </ul>
+                </div>
+            </div>`;
+        }
+
+        async function openAccountSettings() {
+            if (!useMockData) {
+                Swal.fire({
+                    title: 'Ganti Kata Sandi',
+                    text: 'Sistem sedang menggunakan Supabase Auth. Untuk alasan keamanan di purwarupa ini, pergantian kata sandi dilakukan melalui Dashboard Supabase oleh Super Admin.',
+                    icon: 'info'
+                });
+                return;
+            }
+
+            const { value: formValues } = await Swal.fire({
+                title: 'Pengaturan Akun',
+                html: `
+                    <div class="mb-4 text-left">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Password Lama</label>
+                        <input id="swal-old-pass" type="password" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-dinas-500 focus:outline-none" placeholder="Masukkan password lama">
+                    </div>
+                    <div class="mb-4 text-left">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Password Baru</label>
+                        <input id="swal-new-pass" type="password" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-dinas-500 focus:outline-none" placeholder="Masukkan password baru">
+                    </div>
+                    <div class="text-left">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Konfirmasi Password Baru</label>
+                        <input id="swal-conf-pass" type="password" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-dinas-500 focus:outline-none" placeholder="Ulangi password baru">
+                    </div>
+                `,
+                focusConfirm: false,
+                showCancelButton: true,
+                confirmButtonColor: '#1e3a8a',
+                confirmButtonText: 'Simpan Perubahan',
+                cancelButtonText: 'Batal',
+                preConfirm: () => {
+                    const oldPass = document.getElementById('swal-old-pass').value;
+                    const newPass = document.getElementById('swal-new-pass').value;
+                    const confPass = document.getElementById('swal-conf-pass').value;
+                    
+                    if (!oldPass || !newPass || !confPass) { Swal.showValidationMessage('Semua kolom wajib diisi!'); return false; }
+                    if (oldPass !== currentUser.password) { Swal.showValidationMessage('Password lama salah!'); return false; }
+                    if (newPass !== confPass) { Swal.showValidationMessage('Konfirmasi password tidak cocok dengan password baru!'); return false; }
+                    return { newPass: newPass };
+                }
+            });
+
+            if (formValues) {
+                const idx = mockDB.users.findIndex(x => x.id === currentUser.id);
+                if(idx > -1) mockDB.users[idx].password = formValues.newPass;
+                currentUser.password = formValues.newPass;
+                localStorage.setItem('sipas_user', JSON.stringify(currentUser));
+                logActivity('Merubah password akun');
+                Swal.fire('Berhasil!', 'Password Anda berhasil diperbarui.', 'success');
+            }
+        }
+
+        async function resetUserPassword(userId) {
+            if(!useMockData) {
+                Swal.fire('Info', 'Pada mode Produksi, Reset Password dikelola via Dashboard Authentication Supabase.', 'info');
+                return;
+            }
+
+            Swal.fire({
+                title: 'Reset Password User?',
+                text: "Password pengguna ini akan dikembalikan ke pengaturan bawaan (default) yaitu: 123456",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#f97316',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: 'Ya, Reset Password!',
+                cancelButtonText: 'Batal'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    const idx = mockDB.users.findIndex(x => x.id === userId);
+                    if(idx > -1) mockDB.users[idx].password = '123456';
+                    logActivity(`Mereset password user ID ${userId}`);
+                    Swal.fire('Berhasil!', 'Password telah direset ke 123456.', 'success');
+                    loadPage(currentMenu);
+                }
+            });
+        }
+
+        // ==========================================
+        // CETAK PROFIL & REKAP KABUPATEN
+        // ==========================================
+        async function printSchoolProfile(schoolId) {
+            try {
+                Swal.fire({ title: 'Mempersiapkan Dokumen...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                const schoolData = currentSchoolsData.find(s => String(s.id) === String(schoolId));
+                if(!schoolData) throw new Error("Data Sekolah tidak ditemukan.");
+                const [gtk, siswa, gedung, meubeler, it] = await Promise.all([
+                    fetchTableData('gtk').then(res => res.filter(x => String(x.sekolah_id) === String(schoolId))),
+                    fetchTableData('siswa').then(res => res.filter(x => String(x.sekolah_id) === String(schoolId))),
+                    fetchTableData('gedung').then(res => res.filter(x => String(x.sekolah_id) === String(schoolId))),
+                    fetchTableData('meubeler').then(res => res.filter(x => String(x.sekolah_id) === String(schoolId))),
+                    fetchTableData('peralatan_it').then(res => res.filter(x => String(x.sekolah_id) === String(schoolId)))
+                ]);
+                const totalSiswa = siswa.reduce((acc, curr) => acc + Number(curr.total_siswa || 0), 0);
+                const totalGedung = gedung.reduce((acc, curr) => acc + Number(curr.jumlah || 0), 0);
+                
+                document.getElementById('cetak-judul').textContent = `PROFIL LENGKAP SEKOLAH (${appSettings.periode})`;
+                let html = `
+                    <table class="w-full mb-6 mt-4">
+                        <tr><td class="w-48 py-1 font-bold">Nama Sekolah</td><td>: ${schoolData.nama}</td></tr>
+                        <tr><td class="py-1 font-bold">Jenjang</td><td>: ${schoolData.jenjang || '-'}</td></tr>
+                        <tr><td class="py-1 font-bold">NPSN</td><td>: ${schoolData.npsn}</td></tr>
+                        <tr><td class="py-1 font-bold">Kepala Sekolah</td><td>: ${schoolData.kepsek} (NIP: ${schoolData.nip || '-'})</td></tr>
+                        <tr><td class="py-1 font-bold">Alamat</td><td>: ${schoolData.alamat || '-'}</td></tr>
+                        <tr><td class="py-1 font-bold">Status & Luas Lahan</td><td>: ${schoolData.status_lahan || '-'} / ${schoolData.luas_lahan || '-'} m2</td></tr>
+                    </table>
+                    <div class="mb-4">
+                        <h4 class="font-bold border-b-2 border-black mb-2">A. Rekapitulasi Data Siswa</h4>
+                        <table class="w-full border-collapse border border-black text-center">
+                            <thead><tr class="bg-gray-100"><th class="border border-black p-1">Kelas</th><th class="border border-black p-1">Laki-laki</th><th class="border border-black p-1">Perempuan</th><th class="border border-black p-1">Total</th></tr></thead>
+                            <tbody>
+                                ${siswa.length === 0 ? `<tr><td colspan="4" class="border border-black p-1 italic">Belum ada data</td></tr>` : siswa.map(s => `<tr><td class="border border-black p-1">${s.kelas}</td><td class="border border-black p-1">${s.total_l}</td><td class="border border-black p-1">${s.total_p}</td><td class="border border-black p-1">${s.total_siswa}</td></tr>`).join('')}
+                                <tr class="font-bold"><td colspan="3" class="border border-black p-1 text-right pr-2">Total Keseluruhan</td><td class="border border-black p-1">${totalSiswa}</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="mb-4">
+                        <h4 class="font-bold border-b-2 border-black mb-2">B. Rekapitulasi Pendidik & Tenaga Kependidikan (GTK)</h4>
+                        <p class="mb-2">Total GTK terdaftar: <b>${gtk.length}</b> orang.</p>
+                        <table class="w-full border-collapse border border-black text-left">
+                            <thead><tr class="bg-gray-100"><th class="border border-black p-1">Nama / NIP</th><th class="border border-black p-1">Pendidikan</th><th class="border border-black p-1">Status</th><th class="border border-black p-1">Mapel Diajarkan</th></tr></thead>
+                            <tbody>
+                                ${gtk.length === 0 ? `<tr><td colspan="4" class="border border-black p-1 text-center italic">Belum ada data</td></tr>` : gtk.map(g => `<tr><td class="border border-black p-1">${g.nama}<br><span class="text-xs">${g.nip || '-'}</span></td><td class="border border-black p-1">${g.pendidikan}</td><td class="border border-black p-1">${g.status}</td><td class="border border-black p-1">${g.mapel}</td></tr>`).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="mb-4">
+                        <h4 class="font-bold border-b-2 border-black mb-2">C. Rekapitulasi Sarana Gedung</h4>
+                        <p class="mb-2">Total Ruangan/Gedung: <b>${totalGedung}</b> unit.</p>
+                    </div>
+                    <p class="italic mt-8 text-xs text-gray-600">Dokumen ini dicetak otomatis dari sistem SIPENAS pada ${new Date().toLocaleString('id-ID')}.</p>
+                `;
+                document.getElementById('cetak-content').innerHTML = html;
+                Swal.close();
+                setTimeout(() => { window.print(); logActivity(`Mencetak Profil Sekolah ID: ${schoolId}`); }, 500);
+            } catch(e) { Swal.fire('Error', e.message, 'error'); }
+        }
+
+        async function printRekapKabupaten() {
+            try {
+                Swal.fire({ title: 'Mempersiapkan Rekap...', text: 'Mengkompilasi data seluruh sekolah...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                
+                const [schools, gtk, siswa, gedung] = await Promise.all([
+                    fetchTableData('schools'), fetchTableData('gtk'), fetchTableData('siswa'), fetchTableData('gedung')
+                ]);
+
+                let currentSchools = schools;
+                if(currentUser.role === 'admin_sd') currentSchools = schools.filter(s => s.jenjang === 'SD');
+                if(currentUser.role === 'admin_smp') currentSchools = schools.filter(s => s.jenjang === 'SMP');
+
+                const totalSiswa = siswa.reduce((acc, curr) => acc + Number(curr.total_siswa || 0), 0);
+                const totalSiswaL = siswa.reduce((acc, curr) => acc + Number(curr.total_l || 0), 0);
+                const totalSiswaP = siswa.reduce((acc, curr) => acc + Number(curr.total_p || 0), 0);
+                const totalGTK = gtk.length;
+                const gedungRusakBerat = gedung.filter(g => g.kondisi === 'Rusak Berat').reduce((acc, curr) => acc + Number(curr.jumlah || 0), 0);
+
+                let jenjangTitle = 'SEMUA JENJANG';
+                if (currentUser.role === 'admin_sd') jenjangTitle = 'JENJANG SD';
+                if (currentUser.role === 'admin_smp') jenjangTitle = 'JENJANG SMP';
+
+                document.getElementById('cetak-judul').textContent = `REKAPITULASI KABUPATEN (${appSettings.periode}) - ${jenjangTitle}`;
+                let html = `
+                    <div class="mb-6">
+                        <p class="mb-4 text-justify">Berikut adalah rangkuman data Sarana, Prasarana, dan SDM dari <b>${currentSchools.length} Sekolah</b> terdaftar di wilayah lingkup Anda berdasarkan pengisian sistem SIPENAS periode ${appSettings.periode}.</p>
+                        
+                        <h4 class="font-bold border-b-2 border-black mb-2">1. Ringkasan Kependudukan & SDM</h4>
+                        <table class="w-full mb-6">
+                            <tr><td class="w-64 py-1">Total Siswa Keseluruhan</td><td class="font-bold">: ${totalSiswa} Orang</td></tr>
+                            <tr><td class="py-1 pl-4">- Laki-Laki</td><td>: ${totalSiswaL} Orang</td></tr>
+                            <tr><td class="py-1 pl-4">- Perempuan</td><td>: ${totalSiswaP} Orang</td></tr>
+                            <tr><td class="py-1 mt-2">Total Guru & Tenaga Kependidikan</td><td class="font-bold">: ${totalGTK} Orang</td></tr>
+                        </table>
+
+                        <h4 class="font-bold border-b-2 border-black mb-2">2. Daftar Sekolah Terdaftar</h4>
+                        <table class="w-full border-collapse border border-black text-left text-sm mb-6">
+                            <thead><tr class="bg-gray-100"><th class="border border-black p-1">No</th><th class="border border-black p-1">NPSN</th><th class="border border-black p-1">Nama Sekolah</th><th class="border border-black p-1">Kepala Sekolah</th></tr></thead>
+                            <tbody>
+                                ${currentSchools.map((s, i) => `<tr><td class="border border-black p-1 text-center">${i+1}</td><td class="border border-black p-1 text-center">${s.npsn}</td><td class="border border-black p-1">${s.nama}</td><td class="border border-black p-1">${s.kepsek}</td></tr>`).join('')}
+                            </tbody>
+                        </table>
+
+                        <h4 class="font-bold border-b-2 border-black mb-2">3. Kondisi Sarana Kritis</h4>
+                        <p class="mb-2">Total ruangan/gedung yang dilaporkan dalam kondisi <b>Rusak Berat</b> di seluruh wilayah lingkup Anda: <span class="text-red-600 font-bold text-lg">${gedungRusakBerat} Unit</span>.</p>
+                    </div>
+                    <p class="italic mt-8 text-xs text-gray-600">Dokumen rekapitulasi ini sah dan dicetak otomatis dari sistem SIPENAS pada ${new Date().toLocaleString('id-ID')}.</p>
+                `;
+                document.getElementById('cetak-content').innerHTML = html;
+                Swal.close();
+                setTimeout(() => { window.print(); logActivity(`Mencetak Dokumen Rekapitulasi Tingkat Kabupaten`); }, 500);
+            } catch(e) { Swal.fire('Error', e.message, 'error'); }
+        }
+
+        async function exportFullProfile() {
+            try {
+                Swal.fire({ title: 'Mempersiapkan Data...', text: `Sedang menyusun seluruh rekapan profil sekolah untuk periode ${appSettings.periode}...`, allowOutsideClick: false, didOpen: () => { Swal.showLoading() } });
+                const workbook = XLSX.utils.book_new();
+                for (const key of Object.keys(schemas)) {
+                    if (key === 'logs') continue; 
+                    const schema = schemas[key];
+                    const rawData = await fetchTableData(key);
+                    if(rawData.length > 0) {
+                        let exportData = rawData;
+                        if(['super_admin', 'admin_sd', 'admin_smp'].includes(currentUser.role) && key !== 'schools' && key !== 'users') {
+                            const schoolsData = await fetchTableData('schools');
+                            exportData = rawData.map(row => {
+                                const school = schoolsData.find(s => s.id === row.sekolah_id);
+                                return { 'Asal Sekolah': school ? school.nama : 'Unknown', ...row };
+                            });
+                        }
+                        const cleanData = exportData.map(row => {
+                            let cleanRow = {};
+                            if (row['Asal Sekolah']) cleanRow['Asal Sekolah'] = row['Asal Sekolah'];
+                            schema.fields.forEach(f => { cleanRow[f.label] = row[f.name]; });
+                            return cleanRow;
+                        });
+                        const worksheet = XLSX.utils.json_to_sheet(cleanData);
+                        const safeSheetName = schema.title.substring(0, 31).replace(/[\\/*?:\[\]]/g, '');
+                        XLSX.utils.book_append_sheet(workbook, worksheet, safeSheetName);
+                    }
+                }
+                XLSX.writeFile(workbook, `Profil_Lengkap_${currentUser.role.includes('admin') ? 'Dinas' : currentUser.nama_sekolah}_${new Date().toISOString().slice(0,10)}.xlsx`);
+                logActivity('Melakukan Export Multi-Tabel (Semua Data) ke Excel');
+                Swal.fire({ icon: 'success', title: 'Berhasil!', text: 'File Profil Lengkap (Excel) berhasil diunduh.', confirmButtonColor: '#3b82f6' });
+            } catch (err) { Swal.fire('Error!', 'Gagal mengekspor profil lengkap: ' + err.message, 'error'); }
+        }
+
+        async function handleDapodikImport(event, type) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const ext = file.name.split('.').pop().toLowerCase();
+            if(!['xls', 'xlsx'].includes(ext)) {
+                Swal.fire('Format Salah', 'Harap unggah file hasil export Excel resmi dari aplikasi Dapodik (.xls / .xlsx)', 'error');
+                event.target.value = ''; return;
+            }
+
+            Swal.fire({ title: 'Sinkronisasi Dapodik...', text: `Membaca file ${file.name} dan menyelaraskan dengan format SIPENAS...`, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            
+            setTimeout(() => {
+                logActivity(`Melakukan Sinkronisasi Data ${type.toUpperCase()} dari File Dapodik.`);
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Sinkronisasi Berhasil!',
+                    text: `Sistem berhasil memetakan dan menarik data ${type.toUpperCase()} dari dokumen Dapodik yang diunggah. Database SIPENAS telah disesuaikan.`,
+                    confirmButtonColor: '#3b82f6'
+                }).then(() => {
+                    loadPage(currentMenu);
+                });
+                event.target.value = '';
+            }, 2500);
+        }
+
+        // ==========================================
+        // DASHBOARD WITH ANALYTIC FILTERS
+        // ==========================================
+        async function renderDashboard() {
+            const content = document.getElementById('dynamic-content');
+            
+            const [schools, gtk, siswa, gedung, meubeler, it, ensiklopedia, pip, bos, akreditasi] = await Promise.all([
+                fetchTableData('schools'), fetchTableData('gtk'), fetchTableData('siswa'),
+                fetchTableData('gedung'), fetchTableData('meubeler'), fetchTableData('peralatan_it'),
+                fetchTableData('ensiklopedia'), fetchTableData('pip'), fetchTableData('bos'), fetchTableData('akreditasi')
+            ]);
+            
+            dashData = { schools, gtk, siswa, gedung, meubeler, it, ensiklopedia, pip, bos, akreditasi };
+            
+            const isAdmin = ['super_admin', 'admin_sd', 'admin_smp'].includes(currentUser.role);
+            let jenjangLabel = '';
+            if (currentUser.role === 'admin_sd') jenjangLabel = '<span class="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded ml-2">Jenjang SD</span>';
+            if (currentUser.role === 'admin_smp') jenjangLabel = '<span class="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded ml-2">Jenjang SMP</span>';
+
+            let filterHtml = '';
+            if (isAdmin) {
+                filterHtml = `
+                <div class="mb-6 bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div class="flex items-center gap-3 w-full md:w-auto">
+                        <i class="fa-solid fa-filter text-gray-400"></i>
+                        <span class="font-bold text-gray-700 whitespace-nowrap">Filter Analitik:</span>
+                        <select id="dash-school-filter" onchange="updateDashboardCharts(this.value)" class="w-full md:w-64 p-2 border border-gray-300 rounded focus:ring-2 focus:ring-dinas-500 outline-none text-sm">
+                            <option value="all">Semua Sekolah (Total Wilayah)</option>
+                            ${schools.map(s => `<option value="${s.id}">${s.npsn} - ${s.nama}</option>`).join('')}
+                        </select>
+                    </div>
+                </div>
+                `;
+            }
+
+            let html = `
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 flex items-center">Ikhtisar SIPENAS ${jenjangLabel}</h2>
+                    <p class="text-sm text-gray-500">Ringkasan data sarana, prasarana, dan SDM Periode ${appSettings.periode}</p>
+                </div>
+                <div class="flex gap-2 w-full md:w-auto">
+                    ${isAdmin ? `
+                    <button onclick="printRekapKabupaten()" class="flex-1 md:flex-none px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition font-medium flex justify-center items-center shadow shadow-blue-200 text-sm md:text-base">
+                        <i class="fa-solid fa-print md:mr-2"></i> <span class="hidden md:inline">Cetak Rekap</span>
+                    </button>` : ''}
+                    <button onclick="exportFullProfile()" class="flex-1 md:flex-none px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg transition font-medium flex justify-center items-center shadow shadow-green-200 text-sm md:text-base">
+                        <i class="fa-solid fa-file-excel md:mr-2"></i> <span class="hidden md:inline">Ekspor Profil</span>
+                    </button>
+                </div>
+            </div>
+            
+            ${filterHtml}
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex items-center">
+                    <div class="bg-blue-500 text-white p-4 rounded-lg mr-4 shadow-md"><i class="fa-solid fa-school text-2xl"></i></div>
+                    <div><p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Sekolah</p><p id="stat-sekolah" class="text-xl font-bold">0</p></div>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex items-center">
+                    <div class="bg-green-500 text-white p-4 rounded-lg mr-4 shadow-md"><i class="fa-solid fa-users text-2xl"></i></div>
+                    <div><p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Siswa</p><p id="stat-siswa" class="text-xl font-bold">0</p></div>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex items-center">
+                    <div class="bg-purple-500 text-white p-4 rounded-lg mr-4 shadow-md"><i class="fa-solid fa-chalkboard-user text-2xl"></i></div>
+                    <div><p class="text-xs text-gray-500 uppercase font-bold tracking-wider">GTK</p><p id="stat-gtk" class="text-xl font-bold">0</p></div>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex items-center">
+                    <div class="bg-orange-500 text-white p-4 rounded-lg mr-4 shadow-md"><i class="fa-solid fa-scale-balanced text-2xl"></i></div>
+                    <div><p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Rasio S/G</p><p id="stat-rasio" class="text-xl font-bold">0</p></div>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6"><h3 class="text-sm font-bold text-gray-700 mb-4 border-b pb-2 uppercase">Kondisi Gedung/Ruang</h3><div class="h-64"><canvas id="chart-gedung"></canvas></div></div>
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6"><h3 class="text-sm font-bold text-gray-700 mb-4 border-b pb-2 uppercase">Status GTK</h3><div class="h-64"><canvas id="chart-gtk"></canvas></div></div>
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6"><h3 class="text-sm font-bold text-gray-700 mb-4 border-b pb-2 uppercase">Sebaran Siswa (L/P)</h3><div class="h-64"><canvas id="chart-siswa"></canvas></div></div>
+            </div>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6"><h3 class="text-sm font-bold text-gray-700 mb-4 border-b pb-2 uppercase">Kondisi Meubeler</h3><div class="h-64"><canvas id="chart-meubeler"></canvas></div></div>
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6"><h3 class="text-sm font-bold text-gray-700 mb-4 border-b pb-2 uppercase">Sumber Alat IT</h3><div class="h-64"><canvas id="chart-it"></canvas></div></div>
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6"><h3 class="text-sm font-bold text-gray-700 mb-4 border-b pb-2 uppercase">Komposisi Buku</h3><div class="h-64"><canvas id="chart-ensiklopedia"></canvas></div></div>
+            </div>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6"><h3 class="text-sm font-bold text-gray-700 mb-4 border-b pb-2 uppercase">Efektivitas PIP</h3><div class="h-64"><canvas id="chart-pip"></canvas></div></div>
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6"><h3 class="text-sm font-bold text-gray-700 mb-4 border-b pb-2 uppercase">Realisasi Dana BOS</h3><div class="h-64"><canvas id="chart-bos"></canvas></div></div>
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6"><h3 class="text-sm font-bold text-gray-700 mb-4 border-b pb-2 uppercase">Peringkat Akreditasi</h3><div class="h-64"><canvas id="chart-akreditasi"></canvas></div></div>
+            </div>
+            `;
+            content.innerHTML = html;
+            
+            // Draw charts based on "all" schools initially
+            setTimeout(() => {
+                updateDashboardCharts('all');
+            }, 100);
+        }
+
+        function updateDashboardCharts(schoolId) {
+            // Helper to filter data based on school dropdown
+            const filterData = (dataArray) => {
+                if (schoolId === 'all') return dataArray;
+                return dataArray.filter(d => String(d.sekolah_id) === String(schoolId));
+            };
+
+            const fSchools = schoolId === 'all' ? dashData.schools : dashData.schools.filter(s => String(s.id) === String(schoolId));
+            const fGtk = filterData(dashData.gtk);
+            const fSiswa = filterData(dashData.siswa);
+            const fGedung = filterData(dashData.gedung);
+            const fMeubeler = filterData(dashData.meubeler);
+            const fIt = filterData(dashData.it);
+            const fEnsiklopedia = filterData(dashData.ensiklopedia);
+            const fPip = filterData(dashData.pip);
+            const fBos = filterData(dashData.bos);
+            const fAkreditasi = filterData(dashData.akreditasi);
+
+            // Calculate Stats for Top Cards
+            const totalSiswa = fSiswa.reduce((acc, curr) => acc + Number(curr.total_siswa || 0), 0);
+            const totalGTK = fGtk.length;
+            const rasio = totalGTK > 0 ? (totalSiswa / totalGTK).toFixed(1) : 0;
+            
+            document.getElementById('stat-sekolah').textContent = fSchools.length;
+            document.getElementById('stat-siswa').textContent = totalSiswa;
+            document.getElementById('stat-gtk').textContent = totalGTK;
+            document.getElementById('stat-rasio').textContent = rasio;
+
+            const countFreq = (arr, key) => arr.reduce((acc, curr) => { const val = curr[key] || 'Tidak Diketahui'; acc[val] = (acc[val] || 0) + (curr.jumlah ? Number(curr.jumlah) : 1); return acc; }, {});
+            
+            // Destroy existing charts to prevent overlap/glitches
+            if (dashCharts.gedung) dashCharts.gedung.destroy();
+            if (dashCharts.gtk) dashCharts.gtk.destroy();
+            if (dashCharts.siswa) dashCharts.siswa.destroy();
+            if (dashCharts.meubeler) dashCharts.meubeler.destroy();
+            if (dashCharts.it) dashCharts.it.destroy();
+            if (dashCharts.ensiklopedia) dashCharts.ensiklopedia.destroy();
+            if (dashCharts.pip) dashCharts.pip.destroy();
+            if (dashCharts.bos) dashCharts.bos.destroy();
+            if (dashCharts.akreditasi) dashCharts.akreditasi.destroy();
+
+            // Re-draw Charts
+            const dGedung = countFreq(fGedung, 'kondisi');
+            dashCharts.gedung = new Chart(document.getElementById('chart-gedung'), { type: 'doughnut', data: { labels: Object.keys(dGedung), datasets: [{ data: Object.values(dGedung), backgroundColor: ['#10b981', '#fbbf24', '#f97316', '#ef4444'] }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } } });
+            
+            const dGtk = countFreq(fGtk, 'status');
+            dashCharts.gtk = new Chart(document.getElementById('chart-gtk'), { type: 'bar', data: { labels: Object.keys(dGtk), datasets: [{ label: 'GTK', data: Object.values(dGtk), backgroundColor: '#3b82f6' }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } } });
+            
+            let totalL = 0, totalP = 0;
+            fSiswa.forEach(s => { totalL += Number(s.total_l || 0); totalP += Number(s.total_p || 0); });
+            dashCharts.siswa = new Chart(document.getElementById('chart-siswa'), { type: 'pie', data: { labels: ['Laki-laki', 'Perempuan'], datasets: [{ data: [totalL, totalP], backgroundColor: ['#3b82f6', '#ec4899'] }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } } });
+            
+            const dMeubeler = countFreq(fMeubeler, 'kondisi');
+            dashCharts.meubeler = new Chart(document.getElementById('chart-meubeler'), { type: 'doughnut', data: { labels: Object.keys(dMeubeler), datasets: [{ data: Object.values(dMeubeler), backgroundColor: ['#10b981', '#fbbf24', '#f97316', '#ef4444'] }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } } });
+            
+            const dIt = countFreq(fIt, 'sumber');
+            dashCharts.it = new Chart(document.getElementById('chart-it'), { type: 'pie', data: { labels: Object.keys(dIt), datasets: [{ data: Object.values(dIt), backgroundColor: ['#1e40af', '#1d4ed8', '#3b82f6', '#60a5fa'] }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } } });
+            
+            const dEns = countFreq(fEnsiklopedia, 'jenis_buku');
+            dashCharts.ensiklopedia = new Chart(document.getElementById('chart-ensiklopedia'), { type: 'pie', data: { labels: Object.keys(dEns), datasets: [{ data: Object.values(dEns), backgroundColor: ['#0d9488', '#14b8a6'] }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } } });
+            
+            const pipSum = fPip.reduce((acc, curr) => { acc.usulan += Number(curr.usulan || 0); acc.penerima += Number(curr.penerima || 0); return acc; }, { usulan: 0, penerima: 0 });
+            dashCharts.pip = new Chart(document.getElementById('chart-pip'), { type: 'bar', data: { labels: ['Usulan', 'Penerima'], datasets: [{ data: [pipSum.usulan, pipSum.penerima], backgroundColor: ['#6366f1', '#10b981'] }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } } });
+            
+            const bosSum = fBos.reduce((acc, curr) => { 
+                acc.cair += Number(curr.tahap1_jumlah || 0) + (curr.tahap2_status === 'Sudah Cair' ? Number(curr.tahap2_jumlah || 0) : 0); 
+                acc.terpakai += Number(curr.penggunaan_dana || 0); 
+                return acc; 
+            }, { cair: 0, terpakai: 0 });
+            
+            dashCharts.bos = new Chart(document.getElementById('chart-bos'), { 
+                type: 'bar', 
+                data: { labels: ['Dana Cair', 'Realisasi/Terpakai'], datasets: [{ data: [bosSum.cair, bosSum.terpakai], backgroundColor: ['#f59e0b', '#10b981'] }] }, 
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } } 
+            });
+            
+            const dAkred = countFreq(fAkreditasi, 'peringkat');
+            dashCharts.akreditasi = new Chart(document.getElementById('chart-akreditasi'), { type: 'doughnut', data: { labels: Object.keys(dAkred), datasets: [{ data: Object.values(dAkred), backgroundColor: ['#1e3a8a', '#3b82f6', '#93c5fd', '#fca5a5'] }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } } });
+        }
+
+        async function fetchTableData(tableName) {
+            if (useMockData) {
+                let data = mockDB[tableName] || [];
+                
+                // DATA ARCHIVING: Filter data berdasarkan periode aktif (Kecuali tabel master/settings)
+                if (!['users', 'logs', 'system_settings', 'schools', 'announcements'].includes(tableName)) {
+                    data = data.filter(d => d.periode === appSettings.periode);
+                }
+
+                if (currentUser.role === 'user' && !['users', 'logs', 'system_settings', 'announcements'].includes(tableName)) {
+                    if(tableName === 'schools') data = data.filter(d => d.id === (currentUser.sekolah_id || 1));
+                    else data = data.filter(d => d.sekolah_id === (currentUser.sekolah_id || 1));
+                } 
+                else if (['admin_sd', 'admin_smp'].includes(currentUser.role) && !['users', 'logs', 'system_settings', 'announcements'].includes(tableName)) {
+                    const targetJenjang = currentUser.role === 'admin_sd' ? 'SD' : 'SMP';
+                    const allowedSchoolIds = (mockDB.schools || []).filter(s => s.jenjang === targetJenjang).map(s => s.id);
+                    if (tableName === 'schools') {
+                        data = data.filter(d => d.jenjang === targetJenjang);
+                    } else {
+                        data = data.filter(d => allowedSchoolIds.includes(d.sekolah_id));
+                    }
+                }
+                
+                if (tableName === 'pesan' && currentUser.role === 'user') {
+                    data = data.filter(d => d.sekolah_id === currentUser.sekolah_id);
+                }
+                return Array.isArray(data) ? [...data] : (typeof data === 'object' ? [data] : []);
+            } else {
+                let query = supabaseClient.from(tableName).select('*');
+                
+                // DATA ARCHIVING (Supabase)
+                if (!['users', 'logs', 'system_settings', 'schools', 'announcements'].includes(tableName)) {
+                    query = query.eq('periode', appSettings.periode);
+                }
+
+                if (currentUser.role === 'user' && !['users', 'logs', 'system_settings', 'announcements'].includes(tableName)) {
+                    if(tableName === 'schools') query = query.eq('id', currentUser.sekolah_id);
+                    else query = query.eq('sekolah_id', currentUser.sekolah_id);
+                } 
+                else if (['admin_sd', 'admin_smp'].includes(currentUser.role) && !['users', 'logs', 'system_settings', 'announcements'].includes(tableName)) {
+                    const targetJenjang = currentUser.role === 'admin_sd' ? 'SD' : 'SMP';
+                    const { data: schData } = await supabaseClient.from('schools').select('id').eq('jenjang', targetJenjang);
+                    const allowedIds = schData ? schData.map(s => s.id) : [];
+                    
+                    if (tableName === 'schools') {
+                        query = query.eq('jenjang', targetJenjang);
+                    } else if (allowedIds.length > 0) {
+                        query = query.in('sekolah_id', allowedIds);
+                    } else {
+                        return []; 
+                    }
+                }
+
+                if (tableName === 'pesan' && currentUser.role === 'user') {
+                    query = query.eq('sekolah_id', currentUser.sekolah_id);
+                }
+                if(tableName === 'logs') query = query.order('id', { ascending: false });
+                
+                const { data, error } = await query;
+                return data || [];
+            }
+        }
+
+        function applyFilters() {
+            const input = document.getElementById("table-search-input");
+            const filter = input ? input.value.toLowerCase() : "";
+            const schema = schemas[currentMenu];
+            
+            let advancedFilters = {};
+            schema.fields.forEach(f => {
+                if (f.type === 'select') {
+                    const el = document.getElementById(`filter-${f.name}`);
+                    if (el && el.value) {
+                        advancedFilters[f.name] = el.value;
+                    }
+                }
+            });
+
+            filteredTableData = currentTableData.filter(row => {
+                let schoolName = '';
+                const isAdmin = ['super_admin', 'admin_sd', 'admin_smp'].includes(currentUser.role);
+                if (isAdmin && currentMenu !== 'schools' && currentMenu !== 'users' && currentMenu !== 'logs') {
+                    const s = currentSchoolsData.find(item => item.id === row.sekolah_id);
+                    if (s) schoolName = s.nama.toLowerCase();
+                }
+
+                const matchText = !filter || Object.values(row).some(val => 
+                    String(val).toLowerCase().includes(filter)
+                ) || schoolName.includes(filter);
+
+                let matchAdvanced = true;
+                for (const key in advancedFilters) {
+                    if (String(row[key]) !== advancedFilters[key]) {
+                        matchAdvanced = false;
+                        break;
+                    }
+                }
+
+                return matchText && matchAdvanced;
+            });
+            
+            currentPage = 1; 
+            renderTableBody(); 
+        }
+
+        function toggleAdvancedFilter() {
+            const el = document.getElementById('advanced-filter-container');
+            if (el) el.classList.toggle('hidden');
+        }
+
+        async function renderDataTable(schemaId) {
+            const schema = schemas[schemaId];
+            const content = document.getElementById('dynamic-content');
+            
+            currentTableData = await fetchTableData(schema.table);
+            if (schemaId === 'logs' && useMockData) currentTableData = currentTableData.reverse(); 
+            
+            currentSchoolsData = await fetchTableData('schools'); 
+            filteredTableData = [...currentTableData]; 
+            currentPage = 1; 
+            
+            const isAdmin = ['super_admin', 'admin_sd', 'admin_smp'].includes(currentUser.role);
+            const isUserTable = schemaId === 'users';
+            const isLogTable = schemaId === 'logs';
+            
+            const isLocked = appSettings.is_locked && !isAdmin;
+            const canAdd = !isLocked && !isLogTable && ((isAdmin && isUserTable) || (!isAdmin && schemaId !== 'schools'));
+            const isSyncable = ['gtk', 'siswa'].includes(schemaId); 
+            const showImportExport = !isLocked && isSyncable;
+
+            const filterableFields = schema.fields.filter(f => f.type === 'select');
+
+            if (schemaId === 'pesan' && !isAdmin && useMockData) {
+                mockDB.pesan.forEach(p => { if(p.sekolah_id === currentUser.sekolah_id) p.status = 'Read'; });
+                updateMessageNotification();
+            } else if (schemaId === 'pesan' && !isAdmin && !useMockData) {
+                await supabaseClient.from('pesan').update({status: 'Read'}).eq('sekolah_id', currentUser.sekolah_id);
+                updateMessageNotification();
+            }
+
+            let html = `
+            ${isLocked ? `<div class="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 flex items-center shadow-sm"><i class="fa-solid fa-triangle-exclamation text-lg mr-3"></i> <div><span class="font-bold block">Akses Terkunci!</span>Admin Dinas telah menutup akses pendataan untuk periode <b>${appSettings.periode}</b>. Anda hanya dapat melihat data.</div></div>` : ''}
+            
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div class="p-4 border-b bg-gray-50 flex flex-col gap-4 no-print">
+                    
+                    <div class="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
+                        <div class="flex items-center w-full md:w-auto gap-4">
+                            <div class="flex items-center whitespace-nowrap">
+                                <span class="text-gray-500 mr-2">Total Ditemukan:</span>
+                                <span id="total-rekapan-badge" class="font-bold bg-blue-100 text-blue-800 py-1 px-3 rounded-full text-sm">${filteredTableData.length}</span>
+                            </div>
+                            
+                            <div class="relative w-full md:w-64">
+                                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+                                    <i class="fa-solid fa-search"></i>
+                                </span>
+                                <input type="text" id="table-search-input" oninput="applyFilters()" class="w-full pl-10 pr-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-dinas-500 text-sm" placeholder="Cari data...">
+                            </div>
+                            
+                            ${filterableFields.length > 0 && !isLogTable ? `
+                            <button onclick="toggleAdvancedFilter()" class="px-3 py-2 bg-white border border-gray-300 text-gray-700 rounded hover:bg-gray-100 transition text-sm flex items-center whitespace-nowrap shadow-sm">
+                                <i class="fa-solid fa-filter mr-2"></i> Filter
+                            </button>
+                            ` : ''}
+                        </div>
+
+                        <div class="flex flex-wrap gap-2 w-full md:w-auto mt-2 md:mt-0">
+                            <button onclick="window.print()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded border transition text-sm flex items-center">
+                                <i class="fa-solid fa-print mr-2"></i> Print
+                            </button>
+                            ${!isLogTable ? `<button onclick="exportToExcel('${schema.title}')" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded transition text-sm flex items-center"><i class="fa-solid fa-file-excel mr-2"></i> Export Excel</button>` : ''}
+                            
+                            ${canAdd && showImportExport ? `<button onclick="document.getElementById('dapodik-upload').click()" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded transition text-sm flex items-center shadow"><i class="fa-solid fa-cloud-arrow-down mr-2"></i> Sinkron Dapodik</button><input type="file" id="dapodik-upload" class="hidden" accept=".xlsx, .xls" onchange="handleDapodikImport(event, '${schemaId}')">` : ''}
+
+                            ${canAdd && showImportExport ? `<button onclick="document.getElementById('excel-upload').click()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded transition text-sm flex items-center shadow"><i class="fa-solid fa-upload mr-2"></i> Import Manual</button><input type="file" id="excel-upload" class="hidden" accept=".xlsx, .xls" onchange="handleExcelImport(event)">` : ''}
+                            ${canAdd ? `<button onclick="openModal(null, 'edit')" class="px-4 py-2 bg-dinas-800 hover:bg-dinas-900 text-white rounded transition text-sm flex items-center shadow"><i class="fa-solid fa-plus mr-2"></i> Tambah Data</button>` : ''}
+                        </div>
+                    </div>
+
+                    ${filterableFields.length > 0 && !isLogTable ? `
+                    <div id="advanced-filter-container" class="hidden w-full pt-4 mt-2 border-t border-gray-200">
+                        <div class="flex flex-wrap gap-4 items-end">
+                            ${filterableFields.map(f => `
+                                <div class="flex flex-col">
+                                    <label class="text-xs font-semibold text-gray-600 mb-1">${f.label}</label>
+                                    <select id="filter-${f.name}" onchange="applyFilters()" class="p-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-dinas-500 focus:outline-none bg-white min-w-[150px]">
+                                        <option value="">-- Semua --</option>
+                                        ${f.options.map(opt => `<option value="${opt}">${opt}</option>`).join('')}
+                                    </select>
+                                </div>
+                            `).join('')}
+                            <button onclick="document.querySelectorAll('#advanced-filter-container select').forEach(el => el.value = ''); applyFilters();" class="text-sm text-red-500 hover:text-red-700 underline mb-1">Reset Filter</button>
+                        </div>
+                    </div>
+                    ` : ''}
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm text-gray-600" id="data-table">
+                        <thead class="text-xs text-gray-700 uppercase bg-gray-100 border-b">
+                            <tr>
+                                <th class="px-6 py-4">No</th>
+                                ${isAdmin && schemaId !== 'schools' && schemaId !== 'users' && !isLogTable ? `<th class="px-6 py-4">Asal Sekolah</th>` : ''}
+                                ${schema.fields.map(f => `<th class="px-6 py-4">${f.label}</th>`).join('')}
+                                ${!isLogTable ? `<th class="px-6 py-4 text-center no-print">Aksi</th>` : ''}
+                            </tr>
+                        </thead>
+                        <tbody id="table-body">
+                            <!-- Diisi oleh fungsi renderTableBody() -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div id="pagination-container" class="p-4 border-t bg-gray-50 flex flex-col sm:flex-row justify-between items-center text-sm text-gray-600 no-print"></div>
+            </div>`;
+            
+            content.innerHTML = html;
+            renderTableBody(); 
+        }
+
+        function renderTableBody() {
+            const schema = schemas[currentMenu];
+            const tbody = document.getElementById('table-body');
+            const pagContainer = document.getElementById('pagination-container');
+            const totalRekapanEl = document.getElementById('total-rekapan-badge');
+            
+            if (!tbody || !pagContainer) return;
+
+            const isAdmin = ['super_admin', 'admin_sd', 'admin_smp'].includes(currentUser.role);
+            const isUserTable = currentMenu === 'users';
+            const isLogTable = currentMenu === 'logs';
+            
+            const isLocked = appSettings.is_locked && !isAdmin;
+            const canEdit = !isLocked && !isLogTable && ((isAdmin && isUserTable) || (!isAdmin));
+            const canDelete = !isLocked && !isLogTable && ((isAdmin && isUserTable) || (!isAdmin && currentMenu !== 'schools'));
+            const canEditStatusAdmin = isAdmin && (currentMenu === 'sptjm' || currentMenu === 'gedung'); 
+            const isAdminMessage = isAdmin && currentMenu === 'pesan'; 
+            const canApprove = isAdmin && (currentMenu === 'gedung' || currentMenu === 'sptjm');
+            
+            const getSchoolName = (id) => {
+                const s = currentSchoolsData.find(item => String(item.id) === String(id));
+                return s ? s.nama : 'Unknown';
+            };
+
+            const totalRows = filteredTableData.length;
+            const totalPages = Math.ceil(totalRows / rowsPerPage) || 1;
+            
+            if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
+            
+            const start = (currentPage - 1) * rowsPerPage;
+            const end = Math.min(start + rowsPerPage, totalRows);
+            const paginatedData = filteredTableData.slice(start, end); 
+
+            if (totalRekapanEl) totalRekapanEl.textContent = totalRows;
+
+            let html = '';
+            if (paginatedData.length === 0) {
+                html = `<tr><td colspan="${schema.fields.length + 2 + (isAdmin && currentMenu !== 'schools' && currentMenu !== 'users' && !isLogTable ? 1 : 0)}" class="text-center py-8 text-gray-400">Belum ada data rekapan masuk.</td></tr>`;
+            } else {
+                html = paginatedData.map((row, index) => {
+                    const actualIndex = start + index + 1; 
+                    let rowHtml = `<tr class="bg-white border-b hover:bg-gray-50"><td class="px-6 py-4 font-medium">${actualIndex}</td>`;
+                    
+                    if (isAdmin && currentMenu !== 'schools' && currentMenu !== 'users' && !isLogTable) {
+                        rowHtml += `<td class="px-6 py-4 font-semibold text-dinas-800">${getSchoolName(row.sekolah_id)}</td>`;
+                    }
+
+                    schema.fields.forEach(f => { 
+                        let cellValue = row[f.name]; 
+                        if (cellValue && f.isCurrency) {
+                            cellValue = 'Rp ' + Number(cellValue).toLocaleString('id-ID'); 
+                        } else if (cellValue && f.type === 'file') {
+                            const isUrl = cellValue.toString().startsWith('http');
+                            const displayTxt = cellValue.split('\\').pop().split('/').pop();
+                            if(isUrl) {
+                                cellValue = `<a href="${cellValue}" target="_blank" class="text-blue-600 hover:underline text-xs font-semibold"><i class="fa-solid fa-paperclip"></i> Lihat Dokumen</a>`;
+                            } else {
+                                cellValue = `<a href="#" class="text-blue-600 hover:underline text-xs" onclick="Swal.fire('Demo Mode', 'File sesungguhnya tidak diunggah ke cloud (Mock DB). File: ${displayTxt}', 'info')"><i class="fa-solid fa-paperclip"></i> ${displayTxt}</a>`;
+                            }
+                        }
+                        
+                        if (currentMenu === 'users' && f.name === 'password') cellValue = `<span class="text-gray-400 select-none">••••••••</span>`;
+                        
+                        if ((f.name === 'status' && currentMenu === 'sptjm') || (f.name === 'status' && currentMenu === 'pesan') || (f.name === 'status_verifikasi' && currentMenu === 'gedung')) {
+                            let badgeColor = 'bg-gray-100 text-gray-800';
+                            if (cellValue === 'Disetujui' || cellValue === 'Read' || cellValue === 'Valid') badgeColor = 'bg-green-100 text-green-800';
+                            if (cellValue === 'Ditolak' || cellValue === 'Unread') badgeColor = 'bg-red-100 text-red-800';
+                            if (cellValue === 'Menunggu') badgeColor = 'bg-yellow-100 text-yellow-800';
+                            cellValue = `<span class="px-2 py-1 rounded text-xs font-bold ${badgeColor}">${cellValue || 'Menunggu'}</span>`;
+                        }
+
+                        if (currentMenu === 'pesan' && f.name === 'sekolah_id' && !isAdmin) {
+                             cellValue = getSchoolName(cellValue);
+                        }
+
+                        rowHtml += `<td class="px-6 py-4">${cellValue || '-'}</td>`; 
+                    });
+
+                    if(!isLogTable) {
+                        rowHtml += `<td class="px-6 py-4 text-center no-print whitespace-nowrap">
+                            <button onclick="viewData(${row.id})" class="text-green-600 hover:text-green-800 mx-1 bg-green-50 p-2 rounded" title="Lihat Detail"><i class="fa-solid fa-eye"></i></button>
+                            ${(canEdit || canEditStatusAdmin || isAdminMessage) && currentMenu !== 'pesan' ? `<button onclick="editData(${row.id})" class="text-blue-600 hover:text-blue-800 mx-1 bg-blue-50 p-2 rounded" title="Edit Data"><i class="fa-solid fa-pen"></i></button>` : ''}
+                            ${canApprove ? `<button onclick="quickUpdateStatus(${row.id}, '${currentMenu === 'gedung' ? 'Valid' : 'Disetujui'}')" class="text-emerald-600 hover:text-emerald-800 mx-1 bg-emerald-100 p-2 rounded" title="Validasi/Setujui"><i class="fa-solid fa-check"></i></button><button onclick="quickUpdateStatus(${row.id}, 'Ditolak')" class="text-rose-600 hover:text-rose-800 mx-1 bg-rose-100 p-2 rounded" title="Tolak"><i class="fa-solid fa-xmark"></i></button>` : ''}
+                            ${(canDelete || isAdminMessage) ? `<button onclick="deleteData(${row.id})" class="text-red-600 hover:text-red-800 mx-1 bg-red-50 p-2 rounded" title="Hapus Data"><i class="fa-solid fa-trash"></i></button>` : ''}
+                            ${currentUser.role === 'super_admin' && currentMenu === 'users' ? `<button onclick="resetUserPassword(${row.id})" class="text-orange-500 hover:text-orange-700 mx-1 bg-orange-50 p-2 rounded" title="Reset Password ke 123456"><i class="fa-solid fa-key"></i></button>` : ''}
+                            ${isAdmin && currentMenu === 'schools' ? `<button onclick="printSchoolProfile(${row.id})" class="text-gray-600 hover:text-gray-900 mx-1 bg-gray-100 p-2 rounded" title="Cetak Profil Lengkap (PDF)"><i class="fa-solid fa-file-pdf"></i></button>` : ''}
+                        </td>`;
+                    }
+                    rowHtml += `</tr>`;
+                    return rowHtml;
+                }).join('');
+            }
+            tbody.innerHTML = html;
+
+            pagContainer.innerHTML = `
+                <div class="mb-3 sm:mb-0 text-center sm:text-left">
+                    Menampilkan <span class="font-semibold">${totalRows === 0 ? 0 : start + 1}</span> sampai <span class="font-semibold">${end}</span> dari <span class="font-semibold">${totalRows}</span> entri
+                </div>
+                <div class="flex items-center justify-center gap-2">
+                    <select onchange="changeRowsPerPage(this.value)" class="border border-gray-300 rounded p-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-dinas-500 bg-white cursor-pointer">
+                        <option value="5" ${rowsPerPage == 5 ? 'selected' : ''}>5 baris</option>
+                        <option value="10" ${rowsPerPage == 10 ? 'selected' : ''}>10 baris</option>
+                        <option value="25" ${rowsPerPage == 25 ? 'selected' : ''}>25 baris</option>
+                        <option value="50" ${rowsPerPage == 50 ? 'selected' : ''}>50 baris</option>
+                    </select>
+                    <div class="inline-flex rounded-md shadow-sm" role="group">
+                        <button type="button" onclick="changePage(${currentPage - 1})" ${currentPage === 1 || totalPages === 0 ? 'disabled' : ''} class="px-3 py-1.5 text-sm font-medium text-gray-900 bg-white border border-gray-200 rounded-l-lg hover:bg-gray-100 hover:text-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition">
+                            <i class="fa-solid fa-chevron-left"></i>
+                        </button>
+                        <button type="button" class="px-3 py-1.5 text-sm font-medium text-gray-900 bg-gray-50 border-t border-b border-gray-200 pointer-events-none">
+                            Hal ${totalPages === 0 ? 0 : currentPage} / ${totalPages}
+                        </button>
+                        <button type="button" onclick="changePage(${currentPage + 1})" ${currentPage === totalPages || totalPages === 0 ? 'disabled' : ''} class="px-3 py-1.5 text-sm font-medium text-gray-900 bg-white border border-gray-200 rounded-r-lg hover:bg-gray-100 hover:text-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition">
+                            <i class="fa-solid fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function changePage(newPage) {
+            currentPage = newPage;
+            renderTableBody();
+        }
+
+        function changeRowsPerPage(val) {
+            rowsPerPage = parseInt(val);
+            currentPage = 1;
+            renderTableBody();
+        }
+
+        function viewData(id) { openModal(id, 'view'); }
+        function editData(id) { openModal(id, 'edit'); }
+
+        function openModal(id = null, mode = 'edit') {
+            const isAdmin = ['super_admin', 'admin_sd', 'admin_smp'].includes(currentUser.role);
+            const isLocked = appSettings.is_locked && !isAdmin;
+            if (mode !== 'view' && isLocked) {
+                Swal.fire('Terkunci', 'Akses pendataan telah ditutup oleh Admin. Anda hanya dapat melihat data.', 'warning');
+                return;
+            }
+
+            editingId = id;
+            currentModalMode = mode;
+            const schema = schemas[currentMenu];
+            
+            let titlePrefix = 'Tambah';
+            if (id && mode === 'edit') titlePrefix = 'Edit';
+            if (id && mode === 'view') titlePrefix = 'Detail';
+            document.getElementById('modal-title').textContent = `${titlePrefix} ${schema.title}`;
+            
+            const form = document.getElementById('crud-form');
+            form.innerHTML = '';
+            let rowData = id ? currentTableData.find(d => d.id === id) || {} : {};
+            let formHtml = `<div class="grid grid-cols-1 md:grid-cols-2 gap-4">`;
+            
+            schema.fields.forEach(f => {
+                const value = rowData[f.name] || '';
+                const required = f.required && mode !== 'view' ? 'required' : '';
+                const reqStar = f.required && mode !== 'view' ? '<span class="text-red-500">*</span>' : '';
+                formHtml += `<div class="mb-2"><label class="block text-sm font-medium text-gray-700 mb-1">${f.label} ${reqStar}</label>`;
+                
+                let isReadOnly = f.readonly || mode === 'view';
+                if (isAdmin && ((currentMenu === 'sptjm' && f.name === 'status') || (currentMenu === 'gedung' && f.name === 'status_verifikasi')) && mode === 'edit') {
+                    isReadOnly = false;
+                }
+                if (currentMenu === 'pesan' && mode === 'edit') isReadOnly = false;
+
+                const readOnlyClass = isReadOnly ? 'bg-gray-100 text-gray-600 focus:outline-none cursor-not-allowed border-gray-200' : 'focus:ring-2 focus:ring-dinas-500 focus:outline-none border-gray-300';
+                
+                let extraAttrs = '';
+                if (f.min !== undefined) extraAttrs += ` min="${f.min}"`;
+                if (f.max !== undefined) extraAttrs += ` max="${f.max}"`;
+                if (f.minLength !== undefined) extraAttrs += ` minlength="${f.minLength}"`;
+                if (f.maxLength !== undefined) extraAttrs += ` maxlength="${f.maxLength}"`;
+                if (f.title !== undefined) extraAttrs += ` title="${f.title}"`;
+
+                if (f.type === 'textarea') {
+                    formHtml += `<textarea id="input-${f.name}" class="w-full p-2 border rounded ${readOnlyClass}" rows="3" ${required} ${isReadOnly ? 'disabled' : ''} ${extraAttrs}>${value}</textarea>`;
+                } else if (f.type === 'select') {
+                    formHtml += `<select id="input-${f.name}" class="w-full p-2 border rounded ${readOnlyClass}" ${required} ${isReadOnly ? 'disabled' : ''} ${extraAttrs}><option value="">-- Pilih --</option>${f.options.map(opt => `<option value="${opt}" ${value === opt ? 'selected' : ''}>${opt}</option>`).join('')}</select>`;
+                } else if (f.type === 'select_sekolah') {
+                    const opts = currentSchoolsData.map(s => `<option value="${s.id}" ${value == s.id ? 'selected' : ''}>${s.npsn} - ${s.nama}</option>`).join('');
+                    formHtml += `<select id="input-${f.name}" class="w-full p-2 border rounded ${readOnlyClass}" ${required} ${isReadOnly ? 'disabled' : ''}><option value="">-- Pilih Sekolah --</option>${opts}</select>`;
+                } else if (f.type === 'file') { 
+                    if(mode === 'view' && !value) {
+                        formHtml += `<p class="text-sm text-gray-500 italic p-2 border border-dashed rounded bg-gray-50">Tidak ada file yang diunggah.</p>`;
+                    } else if (mode === 'view' && value) {
+                        const isUrl = value.toString().startsWith('http');
+                        const displayTxt = isUrl ? 'Lihat/Unduh File' : value.split('\\').pop();
+                        const href = isUrl ? value : '#';
+                        formHtml += `<a href="${href}" ${isUrl ? 'target="_blank"' : ''} class="w-full inline-block p-2 border border-blue-200 bg-blue-50 text-blue-600 rounded text-sm hover:underline"><i class="fa-solid fa-download mr-2"></i> ${displayTxt}</a>`;
+                    } else {
+                        formHtml += `<input type="file" id="input-${f.name}" class="w-full p-2 border rounded text-sm ${readOnlyClass}" ${f.accept ? `accept="${f.accept}"` : ''} ${required && !value ? 'required' : ''} ${isReadOnly ? 'disabled' : ''}>`; 
+                        if (value) {
+                            const displayTxt = value.toString().startsWith('http') ? 'File sudah terunggah di Cloud' : value.split('\\').pop();
+                            formHtml += `<p class="text-xs text-green-600 mt-1"><i class="fa-solid fa-check-circle"></i> ${displayTxt}</p>`; 
+                        }
+                    }
+                } else {
+                    let displayValue = value;
+                    if(mode === 'view' && f.name === 'password') displayValue = '••••••••'; 
+                    formHtml += `<input type="${f.type}" id="input-${f.name}" value="${displayValue}" class="w-full p-2 border rounded ${readOnlyClass}" ${required} ${isReadOnly ? 'disabled' : ''} ${extraAttrs}>`;
+                }
+                formHtml += `</div>`;
+            });
+            formHtml += `</div>`;
+            form.innerHTML = formHtml;
+            
+            const btnSave = document.getElementById('btn-save-data');
+            const btnCancel = document.getElementById('btn-cancel-modal');
+            if(mode === 'view') {
+                btnSave.classList.add('hidden');
+                btnCancel.textContent = 'Tutup';
+            } else {
+                btnSave.classList.remove('hidden');
+                btnCancel.textContent = 'Batal';
+                if(currentMenu === 'pesan' && !editingId) {
+                    btnSave.innerHTML = `<i class="fa-solid fa-paper-plane mr-2"></i> Kirim Pesan`;
+                }
+            }
+
+            document.getElementById('crud-modal').classList.remove('hidden');
+
+            // --- PERHITUNGAN OTOMATIS SAAT MODAL DIBUKA ---
+            if (schema.table === 'siswa' && mode !== 'view') {
+                const elL = document.getElementById('input-total_l');
+                const elP = document.getElementById('input-total_p');
+                const elTot = document.getElementById('input-total_siswa');
+                if (elL && elP && elTot) {
+                    const calcTot = () => { elTot.value = (parseInt(elL.value) || 0) + (parseInt(elP.value) || 0); };
+                    elL.addEventListener('input', calcTot);
+                    elP.addEventListener('input', calcTot);
+                }
+            }
+            
+            if (schema.table === 'bos' && mode !== 'view') {
+                const elT1 = document.getElementById('input-tahap1_jumlah');
+                const elT2 = document.getElementById('input-tahap2_jumlah');
+                const elGuna = document.getElementById('input-penggunaan_dana');
+                const elSisa = document.getElementById('input-sisa_dana');
+                
+                if (elT1 && elT2 && elGuna && elSisa) {
+                    const calcBos = () => {
+                        const t1 = parseInt(elT1.value) || 0;
+                        const t2 = parseInt(elT2.value) || 0;
+                        const guna = parseInt(elGuna.value) || 0;
+                        elSisa.value = (t1 + t2) - guna;
+                    };
+                    elT1.addEventListener('input', calcBos);
+                    elT2.addEventListener('input', calcBos);
+                    elGuna.addEventListener('input', calcBos);
+                }
+            }
+
+            if (schema.table === 'pip' && mode !== 'view') {
+                const elUsulan = document.getElementById('input-usulan');
+                const elPenerima = document.getElementById('input-penerima');
+                const elSelisih = document.getElementById('input-selisih');
+                
+                if (elUsulan && elPenerima && elSelisih) {
+                    const calcPip = () => {
+                        const usulan = parseInt(elUsulan.value) || 0;
+                        const penerima = parseInt(elPenerima.value) || 0;
+                        elSelisih.value = usulan - penerima;
+                    };
+                    elUsulan.addEventListener('input', calcPip);
+                    elPenerima.addEventListener('input', calcPip);
+                }
+            }
+        }
+
+        function closeModal() { document.getElementById('crud-modal').classList.add('hidden'); editingId = null; }
+
+        async function saveData() {
+            if (currentModalMode === 'view') return; 
+            const schema = schemas[currentMenu];
+            const formEl = document.getElementById('crud-form');
+            if (!formEl.checkValidity()) { formEl.reportValidity(); return; }
+            
+            let payload = {};
+            const btnSave = document.getElementById('btn-save-data');
+            const originalBtnText = btnSave.innerHTML;
+
+            for (const f of schema.fields) {
+                const inputEl = document.getElementById(`input-${f.name}`);
+                if (f.type !== 'file' && inputEl) {
+                    payload[f.name] = inputEl.value;
+                }
+            }
+
+            for (const f of schema.fields) {
+                if (f.unique && payload[f.name]) {
+                    let isDuplicate = false;
+                    if (useMockData) {
+                        isDuplicate = mockDB[schema.table].some(d => d[f.name] === payload[f.name] && d.id !== editingId);
+                    } else {
+                        const { data } = await supabaseClient.from(schema.table).select('id').eq(f.name, payload[f.name]).neq('id', editingId || 0);
+                        if (data && data.length > 0) isDuplicate = true;
+                    }
+                    
+                    if (isDuplicate) {
+                        Swal.fire('Validasi Gagal!', `${f.label} "${payload[f.name]}" sudah terdaftar di sistem. Tidak boleh ada data duplikat!`, 'warning');
+                        return; 
+                    }
+                }
+            }
+            
+            try {
+                btnSave.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Memproses...`;
+                btnSave.disabled = true;
+
+                for (const f of schema.fields) {
+                    const inputEl = document.getElementById(`input-${f.name}`);
+                    if (f.type === 'file') {
+                        if (inputEl && inputEl.files && inputEl.files.length > 0) {
+                            const file = inputEl.files[0];
+                            
+                            // VALIDASI TIPE MIME & UKURAN FILE (MAKS 2MB)
+                            const allowedTypes = f.accept ? f.accept.split(',').map(type => {
+                                if(type.includes('pdf')) return 'application/pdf';
+                                if(type.includes('zip')) return 'application/zip';
+                                if(type.includes('jpg') || type.includes('jpeg')) return 'image/jpeg';
+                                if(type.includes('png')) return 'image/png';
+                                return '';
+                            }) : ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+                            
+                            if (f.accept && !allowedTypes.includes(file.type) && !file.type.includes('zip')) {
+                                Swal.fire('Format Tidak Valid', `File ${file.name} tidak didukung. Harap unggah format ${f.accept}.`, 'error');
+                                btnSave.innerHTML = originalBtnText; btnSave.disabled = false;
+                                return;
+                            }
+                            if (file.size > 2 * 1024 * 1024) { // 2MB
+                                Swal.fire('Ukuran Terlalu Besar', `Ukuran file ${file.name} melebihi batas 2MB.`, 'error');
+                                btnSave.innerHTML = originalBtnText; btnSave.disabled = false;
+                                return;
+                            }
+
+                            if (useMockData) {
+                                payload[f.name] = file.name; 
+                            } else {
+                                btnSave.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Mengunggah File...`;
+                                const fileExt = file.name.split('.').pop();
+                                const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+                                const filePath = `${schema.table}/${fileName}`;
+
+                                const { data: uploadData, error: uploadError } = await supabaseClient.storage.from('sipas_files').upload(filePath, file);
+                                if (uploadError) throw uploadError;
+                                const { data: publicUrlData } = supabaseClient.storage.from('sipas_files').getPublicUrl(filePath);
+                                payload[f.name] = publicUrlData.publicUrl;
+                            }
+                        } else if (editingId) {
+                            payload[f.name] = currentTableData.find(d => d.id === editingId)[f.name]; 
+                        }
+                    } else {
+                        if(inputEl && inputEl.value !== undefined) payload[f.name] = inputEl.value;
+                    }
+                }
+
+                // DATA ARCHIVING: Set data ke periode yang sedang aktif saat ini jika bukan tabel master
+                if (!['users', 'logs', 'system_settings', 'schools', 'announcements'].includes(schema.table)) {
+                    payload.periode = appSettings.periode;
+                }
+
+                if (currentUser.role === 'user' && !['schools', 'pesan', 'announcements'].includes(schema.table)) {
+                    payload.sekolah_id = currentUser.sekolah_id || 1;
+                }
+                if (currentMenu === 'sptjm' && !editingId) {
+                    payload.status = 'Menunggu'; 
+                }
+                if (currentMenu === 'gedung' && !editingId) {
+                    payload.status_verifikasi = 'Menunggu'; 
+                }
+                if (currentMenu === 'pesan' && !editingId) {
+                    payload.status = 'Unread';
+                    payload.waktu = new Date().toLocaleString('id-ID');
+                }
+                if (currentMenu === 'announcements' && !editingId) {
+                    payload.waktu = new Date().toLocaleString('id-ID').split(' ')[0];
+                }
+                
+                // Server-side / fallback calculation
+                if (schema.table === 'siswa') {
+                    payload.total_siswa = Number(payload.total_l || 0) + Number(payload.total_p || 0);
+                }
+                if (schema.table === 'bos') {
+                    payload.sisa_dana = (Number(payload.tahap1_jumlah || 0) + Number(payload.tahap2_jumlah || 0)) - Number(payload.penggunaan_dana || 0);
+                }
+                if (schema.table === 'pip') {
+                    payload.selisih = Number(payload.usulan || 0) - Number(payload.penerima || 0);
+                }
+
+                if (useMockData) {
+                    if (editingId) { 
+                        const idx = mockDB[schema.table].findIndex(x => x.id === editingId); 
+                        mockDB[schema.table][idx] = { ...mockDB[schema.table][idx], ...payload }; 
+                    } else { 
+                        payload.id = Date.now(); 
+                        if(!mockDB[schema.table]) mockDB[schema.table] = []; 
+                        mockDB[schema.table].push(payload); 
+                    }
+                    
+                    logActivity(`${editingId ? 'Mengubah' : 'Menambahkan'} data di tabel ${schema.title}`);
+                    closeModal(); 
+                    loadPage(currentMenu); 
+                    Swal.fire('Berhasil!', 'Data berhasil disimpan. (Mock Mode)', 'success');
+                } else {
+                    let result;
+                    if (editingId) result = await supabaseClient.from(schema.table).update(payload).eq('id', editingId);
+                    else result = await supabaseClient.from(schema.table).insert([payload]);
+                    
+                    if (result.error) throw result.error;
+                    
+                    logActivity(`${editingId ? 'Mengubah' : 'Menambahkan'} data di tabel ${schema.title}`);
+                    closeModal(); 
+                    loadPage(currentMenu); 
+                    Swal.fire('Berhasil!', 'Data berhasil disimpan ke database.', 'success');
+                }
+            } catch (err) {
+                Swal.fire('Gagal Menyimpan', err.message, 'error');
+            } finally {
+                btnSave.innerHTML = originalBtnText;
+                btnSave.disabled = false;
+            }
+        }
+
+        async function quickUpdateStatus(id, newStatus) {
+            Swal.fire({
+                title: 'Konfirmasi Perubahan?',
+                html: `Anda akan mengubah status verifikasi menjadi <b>${newStatus}</b>.<br><br>` + 
+                      (newStatus === 'Ditolak' ? '<textarea id="swal-alasan" class="w-full p-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-red-500 outline-none" rows="3" placeholder="Tulis alasan penolakan (Akan dikirim sebagai pesan ke sekolah)"></textarea>' : ''),
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: newStatus === 'Ditolak' ? '#e11d48' : '#059669',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: 'Ya, Ubah!',
+                cancelButtonText: 'Batal',
+                preConfirm: () => {
+                    if (newStatus === 'Ditolak') {
+                        const alasan = document.getElementById('swal-alasan').value;
+                        if (!alasan) {
+                            Swal.showValidationMessage('Alasan penolakan wajib diisi!');
+                            return false;
+                        }
+                        return alasan;
+                    }
+                    return true;
+                }
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    const schema = schemas[currentMenu];
+                    const statusField = currentMenu === 'gedung' ? 'status_verifikasi' : 'status';
+                    const payload = { [statusField]: newStatus };
+                    const alasanPenolakan = result.value;
+
+                    // Mengambil sekolah_id untuk dikirim pesan
+                    const targetRow = currentTableData.find(x => x.id === id);
+                    const targetSchoolId = targetRow ? targetRow.sekolah_id : null;
+                    
+                    if (useMockData) {
+                        const idx = mockDB[schema.table].findIndex(x => x.id === id);
+                        if (idx > -1) mockDB[schema.table][idx][statusField] = newStatus;
+                        
+                        // Buat Pesan Internal Otomatis jika ditolak
+                        if (newStatus === 'Ditolak' && targetSchoolId) {
+                            if(!mockDB.pesan) mockDB.pesan = [];
+                            mockDB.pesan.push({
+                                id: Date.now(),
+                                sekolah_id: targetSchoolId,
+                                judul: `Pemberitahuan Penolakan Data ${schema.title}`,
+                                isi: `Data yang Anda ajukan telah DITOLAK oleh Admin Dinas dengan alasan: "${alasanPenolakan}". Mohon segera perbaiki.`,
+                                status: 'Unread',
+                                waktu: new Date().toLocaleString('id-ID'),
+                                periode: appSettings.periode
+                            });
+                        }
+
+                        logActivity(`Memperbarui status ID ${id} di ${schema.title} menjadi ${newStatus}`);
+                        Swal.fire('Berhasil!', `Status telah diubah menjadi ${newStatus}.`, 'success');
+                        loadPage(currentMenu);
+                    } else {
+                        const { error } = await supabaseClient.from(schema.table).update(payload).eq('id', id);
+                        if (error) {
+                            Swal.fire('Gagal!', error.message, 'error');
+                        } else {
+                            if (newStatus === 'Ditolak' && targetSchoolId) {
+                                await supabaseClient.from('pesan').insert([{
+                                    sekolah_id: targetSchoolId,
+                                    judul: `Pemberitahuan Penolakan Data ${schema.title}`,
+                                    isi: `Data yang Anda ajukan telah DITOLAK oleh Admin Dinas dengan alasan: "${alasanPenolakan}". Mohon segera perbaiki.`,
+                                    status: 'Unread',
+                                    waktu: new Date().toLocaleString('id-ID'),
+                                    periode: appSettings.periode
+                                }]);
+                            }
+
+                            logActivity(`Memperbarui status ID ${id} di ${schema.title} menjadi ${newStatus}`);
+                            Swal.fire('Berhasil!', `Status telah diubah menjadi ${newStatus}.`, 'success');
+                            loadPage(currentMenu);
+                        }
+                    }
+                }
+            });
+        }
+
+        function deleteData(id) {
+            Swal.fire({
+                title: 'Apakah Anda yakin?',
+                text: "Data yang dihapus tidak dapat dikembalikan!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3b82f6',
+                confirmButtonText: 'Ya, Hapus Data!',
+                cancelButtonText: 'Batal'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    const schema = schemas[currentMenu]; 
+                    if (useMockData) { 
+                        mockDB[schema.table] = mockDB[schema.table].filter(x => x.id !== id); 
+                        logActivity(`Menghapus data di tabel ${schema.title}`);
+                        loadPage(currentMenu); 
+                        Swal.fire('Terhapus!', 'Data berhasil dihapus dari sistem.', 'success');
+                    } else { 
+                        const { error } = await supabaseClient.from(schema.table).delete().eq('id', id); 
+                        if (error) {
+                            Swal.fire('Gagal!', error.message, 'error');
+                        } else {
+                            logActivity(`Menghapus data di tabel ${schema.title}`);
+                            loadPage(currentMenu); 
+                            Swal.fire('Terhapus!', 'Data berhasil dihapus dari database utama.', 'success');
+                        }
+                    }
+                }
+            });
+        }
+
+        function exportToExcel(fileName) { 
+            if(filteredTableData.length === 0) { 
+                Swal.fire('Informasi', 'Tidak ada data untuk diekspor pada tabel ini.', 'info');
+                return; 
+            } 
+            const exportData = filteredTableData.map(row => { 
+                let cleanRow = {}; 
+                schemas[currentMenu].fields.forEach(f => { cleanRow[f.label] = row[f.name]; }); 
+                return cleanRow; 
+            }); 
+            const worksheet = XLSX.utils.json_to_sheet(exportData); 
+            const workbook = XLSX.utils.book_new(); 
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Data"); 
+            XLSX.writeFile(workbook, `Rekap_${fileName}_${new Date().toISOString().slice(0,10)}.xlsx`); 
+        }
+
+        function downloadTemplate() { 
+            const schema = schemas[currentMenu]; 
+            const headers = schema.fields.map(f => f.label); 
+            const worksheet = XLSX.utils.aoa_to_sheet([headers]); 
+            const workbook = XLSX.utils.book_new(); 
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Template"); 
+            XLSX.writeFile(workbook, `Template_Import_${schema.title}.xlsx`); 
+        }
+
+        async function handleExcelImport(event) { 
+            const file = event.target.files[0]; 
+            if (!file) return; 
+            
+            const reader = new FileReader(); 
+            reader.onload = async (e) => { 
+                try { 
+                    const data = new Uint8Array(e.target.result); 
+                    const workbook = XLSX.read(data, { type: 'array' }); 
+                    const worksheet = workbook.Sheets[workbook.SheetNames[0]]; 
+                    const excelData = XLSX.utils.sheet_to_json(worksheet); 
+                    
+                    if (excelData.length === 0) {
+                        Swal.fire('Kosong', 'Tidak ada data di dalam file Excel.', 'warning');
+                        return;
+                    }
+                    
+                    const schema = schemas[currentMenu]; 
+                    const newRecords = excelData.map((row, index) => { 
+                        let record = {}; 
+                        schema.fields.forEach(f => { if (row[f.label] !== undefined) record[f.name] = row[f.label]; }); 
+                        
+                        // Set periode
+                        if (!['users', 'logs', 'system_settings', 'schools', 'announcements'].includes(schema.table)) {
+                            record.periode = appSettings.periode;
+                        }
+
+                        if (currentUser.role === 'user' && schema.table !== 'schools') record.sekolah_id = currentUser.sekolah_id || 1; 
+                        
+                        if (schema.table === 'siswa') {
+                            record.total_siswa = Number(record.total_l || 0) + Number(record.total_p || 0);
+                        }
+
+                        if (useMockData) record.id = Date.now() + index; 
+                        return record; 
+                    }); 
+
+                    if (useMockData) { 
+                        if (!mockDB[schema.table]) mockDB[schema.table] = []; 
+                        mockDB[schema.table].push(...newRecords); 
+                        logActivity(`Melakukan Import Excel (${newRecords.length} baris) ke tabel ${schema.title}`);
+                        loadPage(currentMenu); 
+                        Swal.fire('Berhasil!', `Berhasil mengimpor ${newRecords.length} baris data (Mock DB).`, 'success');
+                    } else { 
+                        Swal.fire({ title: 'Mengimpor...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } });
+                        const { error } = await supabaseClient.from(schema.table).insert(newRecords); 
+                        if (error) throw error; 
+                        logActivity(`Melakukan Import Excel (${newRecords.length} baris) ke tabel ${schema.title}`);
+                        loadPage(currentMenu); 
+                        Swal.fire('Berhasil!', `Berhasil mengimpor ${newRecords.length} baris data.`, 'success');
+                    } 
+                } catch (err) { 
+                    Swal.fire('Gagal!', "Kesalahan impor: " + err.message, 'error');
+                } 
+                event.target.value = ''; 
+            }; 
+            reader.readAsArrayBuffer(file); 
+        }
+
+    </script>
+</body>
+</html>
