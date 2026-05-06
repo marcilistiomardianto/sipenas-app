@@ -231,7 +231,6 @@
         const useMockData = SUPABASE_URL.includes('YOUR_PROJECT_ID');
         
         if (!useMockData) {
-            // Jika Anda sudah mengganti URL di atas, aplikasi akan online dan terkoneksi ke Supabase
             supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         } else {
             console.warn("PERINGATAN: Aplikasi berjalan di MOCK MODE (Uji Coba) karena SUPABASE_URL belum diganti.");
@@ -1348,8 +1347,9 @@
                 }
 
                 if (currentUser.role === 'user' && !['users', 'logs', 'system_settings', 'announcements'].includes(tableName)) {
-                    if(tableName === 'schools') data = data.filter(d => String(d.id) === String(currentUser.sekolah_id || 1));
-                    else data = data.filter(d => String(d.sekolah_id) === String(currentUser.sekolah_id || 1));
+                    if (!currentUser.sekolah_id) return []; // [PERBAIKAN] Tahan fetch jika belum punya ID
+                    if(tableName === 'schools') data = data.filter(d => String(d.id) === String(currentUser.sekolah_id));
+                    else data = data.filter(d => String(d.sekolah_id) === String(currentUser.sekolah_id));
                 } 
                 else if (['admin_sd', 'admin_smp'].includes(currentUser.role) && !['users', 'logs', 'system_settings', 'announcements'].includes(tableName)) {
                     const targetJenjang = currentUser.role === 'admin_sd' ? 'SD' : 'SMP';
@@ -1362,6 +1362,7 @@
                 }
                 
                 if (tableName === 'pesan' && currentUser.role === 'user') {
+                    if (!currentUser.sekolah_id) return []; // [PERBAIKAN]
                     data = data.filter(d => String(d.sekolah_id) === String(currentUser.sekolah_id));
                 }
                 return Array.isArray(data) ? [...data] : (typeof data === 'object' ? [data] : []);
@@ -1373,6 +1374,8 @@
                 }
 
                 if (currentUser.role === 'user' && !['users', 'logs', 'system_settings', 'announcements'].includes(tableName)) {
+                    if (!currentUser.sekolah_id) return []; // [PERBAIKAN] Tahan fetch jika belum punya ID
+
                     if(tableName === 'schools') query = query.eq('id', currentUser.sekolah_id);
                     else query = query.eq('sekolah_id', currentUser.sekolah_id);
                 } 
@@ -1391,6 +1394,7 @@
                 }
 
                 if (tableName === 'pesan' && currentUser.role === 'user') {
+                    if (!currentUser.sekolah_id) return []; // [PERBAIKAN]
                     query = query.eq('sekolah_id', currentUser.sekolah_id);
                 }
                 if(tableName === 'logs') query = query.order('id', { ascending: false });
@@ -1978,7 +1982,7 @@
                 }
                 
                 // Pencegahan mutlak agar tidak pernah mengirimkan payload.id yang bernilai kosong (null/undefined)
-                if (payload.id === null || payload.id === undefined) {
+                if (payload.id === null || payload.id === undefined || payload.id === "") {
                     delete payload.id;
                 }
 
@@ -2014,6 +2018,14 @@
                         payload.id = payload.id || Date.now(); 
                         if(!mockDB[schema.table]) mockDB[schema.table] = []; 
                         mockDB[schema.table].push(payload); 
+
+                        // [PERBAIKAN AUTO-LINK DI MOCK MODE]
+                        if (schema.table === 'schools' && currentUser.role === 'user') {
+                            currentUser.sekolah_id = payload.id;
+                            localStorage.setItem('sipas_user', JSON.stringify(currentUser));
+                            const uIdx = mockDB.users.findIndex(x => String(x.id) === String(currentUser.id));
+                            if (uIdx > -1) mockDB.users[uIdx].sekolah_id = payload.id;
+                        }
                     }
                     
                     logActivity(`${editingId ? 'Mengubah' : 'Menambahkan'} data di tabel ${schema.title}`);
@@ -2025,10 +2037,21 @@
                     if (editingId) {
                         result = await supabaseClient.from(schema.table).update(payload).eq('id', editingId);
                     } else {
-                        result = await supabaseClient.from(schema.table).insert([payload]);
+                        // [PERBAIKAN] TAMBAHKAN .select() UNTUK MENGAMBIL ID YANG BARU SAJA DIGENERATE
+                        result = await supabaseClient.from(schema.table).insert([payload]).select();
                     }
                     
                     if (result.error) throw result.error;
+
+                    // [PERBAIKAN AUTO-LINK DI MODE PRODUKSI SUPABASE]
+                    if (!editingId && schema.table === 'schools' && currentUser.role === 'user' && result.data && result.data.length > 0) {
+                        const newSchoolId = result.data[0].id;
+                        // 1. Simpan di sesi lokal pengguna saat ini
+                        currentUser.sekolah_id = newSchoolId;
+                        localStorage.setItem('sipas_user', JSON.stringify(currentUser));
+                        // 2. Simpan kembali ID Sekolah tersebut ke tabel 'users' untuk permanen
+                        await supabaseClient.from('users').update({ sekolah_id: newSchoolId }).eq('id', currentUser.id);
+                    }
                     
                     logActivity(`${editingId ? 'Mengubah' : 'Menambahkan'} data di tabel ${schema.title}`);
                     closeModal(); 
