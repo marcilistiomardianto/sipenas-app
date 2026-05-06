@@ -125,9 +125,6 @@
                     <span id="login-text">Masuk Sistem</span>
                     <div id="login-loader" class="loader hidden w-5 h-5 border-2 border-t-white ml-2"></div>
                 </button>
-                <div class="mt-4 text-[11px] text-center text-gray-500 italic" id="mock-login-helper">
-                    Sandi Default: 123456
-                </div>
             </form>
         </div>
     </div>
@@ -226,16 +223,18 @@
         // ==========================================
         // 1. KONFIGURASI SUPABASE 
         // ==========================================
-        // UNTUK PRODUKSI: Ganti URL dan Key ini dengan yang ada di Dashboard Supabase Anda
-        const SUPABASE_URL = 'https://YOUR_PROJECT_ID.supabase.co';
-        const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';
+        // PENTING: UBAH DUA BARIS DI BAWAH INI DENGAN DATA SUPABASE ANDA SEBELUM UPLOAD KE GITHUB!
+        const SUPABASE_URL = 'https://ruvqyojeftgllbisknff.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_Y8-l3DWcKU2BEdpJ99u_fw_WDS60ylw';
         
         let supabaseClient = null;
         const useMockData = SUPABASE_URL.includes('YOUR_PROJECT_ID');
         
         if (!useMockData) {
-            // Kita tetap memakai client Supabase untuk database, tapi TIDAK pakai Supabase Auth
+            // Jika Anda sudah mengganti URL di atas, aplikasi akan online dan terkoneksi ke Supabase
             supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        } else {
+            console.warn("PERINGATAN: Aplikasi berjalan di MOCK MODE (Uji Coba) karena SUPABASE_URL belum diganti.");
         }
 
         // ==========================================
@@ -1349,21 +1348,21 @@
                 }
 
                 if (currentUser.role === 'user' && !['users', 'logs', 'system_settings', 'announcements'].includes(tableName)) {
-                    if(tableName === 'schools') data = data.filter(d => d.id === (currentUser.sekolah_id || 1));
-                    else data = data.filter(d => d.sekolah_id === (currentUser.sekolah_id || 1));
+                    if(tableName === 'schools') data = data.filter(d => String(d.id) === String(currentUser.sekolah_id || 1));
+                    else data = data.filter(d => String(d.sekolah_id) === String(currentUser.sekolah_id || 1));
                 } 
                 else if (['admin_sd', 'admin_smp'].includes(currentUser.role) && !['users', 'logs', 'system_settings', 'announcements'].includes(tableName)) {
                     const targetJenjang = currentUser.role === 'admin_sd' ? 'SD' : 'SMP';
-                    const allowedSchoolIds = (mockDB.schools || []).filter(s => s.jenjang === targetJenjang).map(s => s.id);
+                    const allowedSchoolIds = (mockDB.schools || []).filter(s => s.jenjang === targetJenjang).map(s => String(s.id));
                     if (tableName === 'schools') {
                         data = data.filter(d => d.jenjang === targetJenjang);
                     } else {
-                        data = data.filter(d => allowedSchoolIds.includes(d.sekolah_id));
+                        data = data.filter(d => allowedSchoolIds.includes(String(d.sekolah_id)));
                     }
                 }
                 
                 if (tableName === 'pesan' && currentUser.role === 'user') {
-                    data = data.filter(d => d.sekolah_id === currentUser.sekolah_id);
+                    data = data.filter(d => String(d.sekolah_id) === String(currentUser.sekolah_id));
                 }
                 return Array.isArray(data) ? [...data] : (typeof data === 'object' ? [data] : []);
             } else {
@@ -1397,12 +1396,9 @@
                 if(tableName === 'logs') query = query.order('id', { ascending: false });
                 
                 const { data, error } = await query;
-                
-                // Tambahan: Log Error ke Console jika tabel diblokir oleh Supabase RLS
                 if (error) {
                     console.error(`[Supabase Error] Gagal memuat tabel ${tableName}:`, error.message);
                 }
-                
                 return data || [];
             }
         }
@@ -1472,17 +1468,13 @@
             
             const isLocked = appSettings.is_locked && !isAdmin;
             
-            const isSchoolData = !['users', 'logs', 'system_settings', 'pesan', 'announcements'].includes(schemaId);
             let canAdd = false;
-            
-            // PERBAIKAN: Pembatasan Hak Akses Tambah Data untuk Admin
             if (!isLocked && !isLogTable) {
                 if (isAdmin) {
-                    if (isSuperAdmin && isUserTable) canAdd = true; // Superadmin bisa tambah user
-                    if (schemaId === 'announcements' || schemaId === 'pesan') canAdd = true; // Admin bisa buat pengumuman/pesan
+                    if (isSuperAdmin && isUserTable) canAdd = true;
+                    if (schemaId === 'announcements' || schemaId === 'pesan') canAdd = true;
                 } else {
-                    // Role User/Sekolah
-                    if (schemaId !== 'schools') canAdd = true; // Sekolah bisa tambah data kecuali data identitas sekolah baru
+                    if (schemaId !== 'schools') canAdd = true;
                 }
             }
             
@@ -1492,7 +1484,7 @@
             const filterableFields = schema.fields.filter(f => f.type === 'select');
 
             if (schemaId === 'pesan' && !isAdmin && useMockData) {
-                mockDB.pesan.forEach(p => { if(p.sekolah_id === currentUser.sekolah_id) p.status = 'Read'; });
+                mockDB.pesan.forEach(p => { if(String(p.sekolah_id) === String(currentUser.sekolah_id)) p.status = 'Read'; });
                 updateMessageNotification();
             } else if (schemaId === 'pesan' && !isAdmin && !useMockData) {
                 await supabaseClient.from('pesan').update({status: 'Read'}).eq('sekolah_id', currentUser.sekolah_id);
@@ -1594,11 +1586,8 @@
             
             const isLocked = appSettings.is_locked && !isAdmin;
             
-            // PERBAIKAN: Pembatasan Hak Akses Edit/Hapus Data untuk Admin
-            const isSchoolData = !['users', 'logs', 'system_settings', 'pesan', 'announcements'].includes(currentMenu);
             let canEdit = false;
             let canDelete = false;
-            
             if (!isLocked && !isLogTable) {
                 if (isAdmin) {
                     if (isSuperAdmin && isUserTable) {
@@ -1609,14 +1598,14 @@
                         canEdit = (currentMenu === 'announcements');
                         canDelete = true;
                     }
-                    // Data sekolah otomatis Read-Only bagi Admin
                 } else {
-                    // Role User/Sekolah
                     canEdit = true;
                     canDelete = (currentMenu !== 'schools');
                 }
             }
 
+            const canEditStatusAdmin = isAdmin && (currentMenu === 'sptjm' || currentMenu === 'gedung'); 
+            const isAdminMessage = isAdmin && currentMenu === 'pesan'; 
             const canApprove = isAdmin && (currentMenu === 'gedung' || currentMenu === 'sptjm');
             
             const getSchoolName = (id) => {
@@ -1678,13 +1667,13 @@
                         rowHtml += `<td class="px-6 py-4">${cellValue || '-'}</td>`; 
                     });
 
-                    if(!isLogTable && !(isUserTable && !useMockData)) {
+                    if(!isLogTable) {
                         rowHtml += `<td class="px-6 py-4 text-center no-print whitespace-nowrap">
                             <button onclick="viewData('${row.id}')" class="text-green-600 hover:text-green-800 mx-1 bg-green-50 p-2 rounded" title="Lihat Detail"><i class="fa-solid fa-eye"></i></button>
                             ${canEdit && currentMenu !== 'pesan' ? `<button onclick="editData('${row.id}')" class="text-blue-600 hover:text-blue-800 mx-1 bg-blue-50 p-2 rounded" title="Edit Data"><i class="fa-solid fa-pen"></i></button>` : ''}
                             ${canApprove ? `<button onclick="quickUpdateStatus('${row.id}', '${currentMenu === 'gedung' ? 'Valid' : 'Disetujui'}')" class="text-emerald-600 hover:text-emerald-800 mx-1 bg-emerald-100 p-2 rounded" title="Validasi/Setujui"><i class="fa-solid fa-check"></i></button><button onclick="quickUpdateStatus('${row.id}', 'Ditolak')" class="text-rose-600 hover:text-rose-800 mx-1 bg-rose-100 p-2 rounded" title="Tolak"><i class="fa-solid fa-xmark"></i></button>` : ''}
                             ${canDelete ? `<button onclick="deleteData('${row.id}')" class="text-red-600 hover:text-red-800 mx-1 bg-red-50 p-2 rounded" title="Hapus Data"><i class="fa-solid fa-trash"></i></button>` : ''}
-                            ${currentUser.role === 'super_admin' && currentMenu === 'users' && useMockData ? `<button onclick="resetUserPassword('${row.id}')" class="text-orange-500 hover:text-orange-700 mx-1 bg-orange-50 p-2 rounded" title="Reset Password ke 123456"><i class="fa-solid fa-key"></i></button>` : ''}
+                            ${isSuperAdmin && currentMenu === 'users' ? `<button onclick="resetUserPassword('${row.id}')" class="text-orange-500 hover:text-orange-700 mx-1 bg-orange-50 p-2 rounded" title="Reset Password ke 123456"><i class="fa-solid fa-key"></i></button>` : ''}
                             ${isAdmin && currentMenu === 'schools' ? `<button onclick="printSchoolProfile('${row.id}')" class="text-gray-600 hover:text-gray-900 mx-1 bg-gray-100 p-2 rounded" title="Cetak Profil Lengkap (PDF)"><i class="fa-solid fa-file-pdf"></i></button>` : ''}
                         </td>`;
                     }
@@ -2000,6 +1989,10 @@
                     payload.selisih = Number(payload.usulan || 0) - Number(payload.penerima || 0);
                 }
 
+                // ==========================================
+                // MOCK DATA CHECK - AKAR PERMASALAHAN ANDA ADA DI SINI:
+                // Jika aplikasi mengira `useMockData` adalah true, ia tidak akan menyimpan ke Supabase
+                // ==========================================
                 if (useMockData) {
                     if (editingId) { 
                         const idx = mockDB[schema.table].findIndex(x => String(x.id) === String(editingId)); 
