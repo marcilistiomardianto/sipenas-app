@@ -1916,7 +1916,12 @@
             for (const f of schema.fields) {
                 const inputEl = document.getElementById(`input-${f.name}`);
                 if (f.type !== 'file' && inputEl) {
-                    payload[f.name] = inputEl.value;
+                    // Mencegah pengiriman string kosong "" ke kolom yang bertipe angka di Supabase
+                    if (f.type === 'number' && inputEl.value === '') {
+                        payload[f.name] = null;
+                    } else {
+                        payload[f.name] = inputEl.value;
+                    }
                 }
             }
 
