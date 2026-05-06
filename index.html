@@ -117,7 +117,7 @@
                     <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
                     <div class="relative">
                         <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400"><i class="fa-solid fa-lock"></i></span>
-                        <input type="password" id="password" class="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-dinas-500" required placeholder="••••••••">
+                        <input type="password" id="password" class="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-dinas-500" required placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢">
                     </div>
                 </div>
                 <div id="login-error" class="hidden mb-4 text-sm text-red-600 bg-red-100 p-2 rounded">Kredensial tidak valid atau akun tidak ditemukan!</div>
@@ -229,8 +229,8 @@
         // 1. KONFIGURASI SUPABASE & AUTHENTICATION
         // ==========================================
         // UNTUK PRODUKSI: Ganti URL dan Key ini dengan yang ada di Dashboard Supabase Anda
-        const SUPABASE_URL = 'https://ruvqyojeftgllbisknff.supabase.co';
-        const SUPABASE_ANON_KEY = 'sb_publishable_Y8-l3DWcKU2BEdpJ99u_fw_WDS60ylw';
+        const SUPABASE_URL = 'https://YOUR_PROJECT_ID.supabase.co';
+        const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';
         
         let supabaseClient = null;
         const useMockData = SUPABASE_URL.includes('YOUR_PROJECT_ID');
@@ -576,7 +576,12 @@
                     .eq('id', authUser.id)
                     .single();
                 
-                if (error) throw error;
+                if (error) {
+                    if (error.code === 'PGRST116') {
+                        throw new Error("Profil belum terdaftar di tabel 'user_profiles'. Harap jalankan skrip SQL Sinkronisasi di Dashboard Supabase.");
+                    }
+                    throw error;
+                }
                 
                 currentUser = { 
                     id: authUser.id, 
@@ -586,7 +591,11 @@
                 initApp();
             } catch (err) {
                 console.error("Gagal menarik profil user:", err);
-                Swal.fire('Error Database', 'Profil user tidak ditemukan di database. Hubungi Super Admin.', 'error');
+                Swal.fire({
+                    title: 'Gagal Memuat Profil',
+                    text: err.message || 'Terjadi kesalahan saat mengambil profil dari database.',
+                    icon: 'error'
+                });
                 await supabaseClient.auth.signOut();
             }
         }
@@ -691,6 +700,7 @@
                 let unreadCount = 0;
                 if(useMockData) {
                     if(currentUser.role === 'user') {
+                        // In MockDB, filter by user's school and active period
                         unreadCount = mockDB.pesan.filter(p => p.sekolah_id === currentUser.sekolah_id && p.status === 'Unread' && p.periode === appSettings.periode).length;
                     }
                 } else {
@@ -1680,7 +1690,7 @@
                             }
                         }
                         
-                        if (currentMenu === 'users' && f.name === 'password') cellValue = `<span class="text-gray-400 select-none">••••••••</span>`;
+                        if (currentMenu === 'users' && f.name === 'password') cellValue = `<span class="text-gray-400 select-none">â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢</span>`;
                         
                         if ((f.name === 'status' && currentMenu === 'sptjm') || (f.name === 'status' && currentMenu === 'pesan') || (f.name === 'status_verifikasi' && currentMenu === 'gedung')) {
                             let badgeColor = 'bg-gray-100 text-gray-800';
@@ -1820,7 +1830,7 @@
                     }
                 } else {
                     let displayValue = value;
-                    if(mode === 'view' && f.name === 'password') displayValue = '••••••••'; 
+                    if(mode === 'view' && f.name === 'password') displayValue = 'â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢'; 
                     formHtml += `<input type="${f.type}" id="input-${f.name}" value="${displayValue}" class="w-full p-2 border rounded ${readOnlyClass}" ${required} ${isReadOnly ? 'disabled' : ''} ${extraAttrs}>`;
                 }
                 formHtml += `</div>`;
