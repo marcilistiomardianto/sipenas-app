@@ -1471,10 +1471,14 @@
             let canAdd = false;
             if (!isLocked && !isLogTable) {
                 if (isAdmin) {
-                    if (isSuperAdmin && isUserTable) canAdd = true;
+                    if (isSuperAdmin && (isUserTable || schemaId === 'schools')) canAdd = true;
                     if (schemaId === 'announcements' || schemaId === 'pesan') canAdd = true;
                 } else {
-                    if (schemaId !== 'schools') canAdd = true;
+                    if (schemaId === 'schools') {
+                        if (filteredTableData.length === 0) canAdd = true;
+                    } else {
+                        canAdd = true;
+                    }
                 }
             }
             
@@ -1590,7 +1594,7 @@
             let canDelete = false;
             if (!isLocked && !isLogTable) {
                 if (isAdmin) {
-                    if (isSuperAdmin && isUserTable) {
+                    if (isSuperAdmin && (isUserTable || currentMenu === 'schools')) {
                         canEdit = true;
                         canDelete = true;
                     }
@@ -1965,6 +1969,11 @@
                 if (currentUser.role === 'user' && !['schools', 'pesan', 'announcements'].includes(schema.table)) {
                     payload.sekolah_id = currentUser.sekolah_id || 1;
                 }
+                
+                if (currentUser.role === 'user' && schema.table === 'schools' && !editingId) {
+                    payload.id = currentUser.sekolah_id;
+                }
+
                 if (currentMenu === 'sptjm' && !editingId) {
                     payload.status = 'Menunggu'; 
                 }
@@ -1989,10 +1998,6 @@
                     payload.selisih = Number(payload.usulan || 0) - Number(payload.penerima || 0);
                 }
 
-                // ==========================================
-                // MOCK DATA CHECK - AKAR PERMASALAHAN ANDA ADA DI SINI:
-                // Jika aplikasi mengira `useMockData` adalah true, ia tidak akan menyimpan ke Supabase
-                // ==========================================
                 if (useMockData) {
                     if (editingId) { 
                         const idx = mockDB[schema.table].findIndex(x => String(x.id) === String(editingId)); 
