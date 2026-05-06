@@ -1397,6 +1397,12 @@
                 if(tableName === 'logs') query = query.order('id', { ascending: false });
                 
                 const { data, error } = await query;
+                
+                // Tambahan: Log Error ke Console jika tabel diblokir oleh Supabase RLS
+                if (error) {
+                    console.error(`[Supabase Error] Gagal memuat tabel ${tableName}:`, error.message);
+                }
+                
                 return data || [];
             }
         }
