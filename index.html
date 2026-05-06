@@ -634,7 +634,7 @@
                 let unreadCount = 0;
                 if(useMockData) {
                     if(currentUser.role === 'user') {
-                        unreadCount = mockDB.pesan.filter(p => p.sekolah_id === currentUser.sekolah_id && p.status === 'Unread' && p.periode === appSettings.periode).length;
+                        unreadCount = mockDB.pesan.filter(p => String(p.sekolah_id) === String(currentUser.sekolah_id) && p.status === 'Unread' && p.periode === appSettings.periode).length;
                     }
                 } else {
                     if(currentUser.role === 'user') {
@@ -945,7 +945,7 @@
 
             if (formValues) {
                 if (useMockData) {
-                    const idx = mockDB.users.findIndex(x => x.id === currentUser.id);
+                    const idx = mockDB.users.findIndex(x => String(x.id) === String(currentUser.id));
                     if(idx > -1) mockDB.users[idx].password = formValues.newPass;
                     currentUser.password = formValues.newPass;
                     localStorage.setItem('sipas_user', JSON.stringify(currentUser));
@@ -1121,7 +1121,7 @@
                         if(['super_admin', 'admin_sd', 'admin_smp'].includes(currentUser.role) && key !== 'schools' && key !== 'users') {
                             const schoolsData = await fetchTableData('schools');
                             exportData = rawData.map(row => {
-                                const school = schoolsData.find(s => s.id === row.sekolah_id);
+                                const school = schoolsData.find(s => String(s.id) === String(row.sekolah_id));
                                 return { 'Asal Sekolah': school ? school.nama : 'Unknown', ...row };
                             });
                         }
@@ -1970,8 +1970,16 @@
                     payload.sekolah_id = currentUser.sekolah_id || 1;
                 }
                 
+                // PERBAIKAN BUG ID KOSONG:
                 if (currentUser.role === 'user' && schema.table === 'schools' && !editingId) {
-                    payload.id = currentUser.sekolah_id;
+                    if (currentUser.sekolah_id) {
+                        payload.id = currentUser.sekolah_id;
+                    }
+                }
+                
+                // Pencegahan mutlak agar tidak pernah mengirimkan payload.id yang bernilai kosong (null/undefined)
+                if (payload.id === null || payload.id === undefined) {
+                    delete payload.id;
                 }
 
                 if (currentMenu === 'sptjm' && !editingId) {
@@ -2003,7 +2011,7 @@
                         const idx = mockDB[schema.table].findIndex(x => String(x.id) === String(editingId)); 
                         mockDB[schema.table][idx] = { ...mockDB[schema.table][idx], ...payload }; 
                     } else { 
-                        payload.id = Date.now(); 
+                        payload.id = payload.id || Date.now(); 
                         if(!mockDB[schema.table]) mockDB[schema.table] = []; 
                         mockDB[schema.table].push(payload); 
                     }
@@ -2014,8 +2022,11 @@
                     Swal.fire('Berhasil!', 'Data berhasil disimpan. (Mock Mode)', 'success');
                 } else {
                     let result;
-                    if (editingId) result = await supabaseClient.from(schema.table).update(payload).eq('id', editingId);
-                    else result = await supabaseClient.from(schema.table).insert([payload]);
+                    if (editingId) {
+                        result = await supabaseClient.from(schema.table).update(payload).eq('id', editingId);
+                    } else {
+                        result = await supabaseClient.from(schema.table).insert([payload]);
+                    }
                     
                     if (result.error) throw result.error;
                     
