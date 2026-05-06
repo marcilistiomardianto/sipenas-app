@@ -1472,17 +1472,22 @@
             
             const isLocked = appSettings.is_locked && !isAdmin;
             
+            const isSchoolData = !['users', 'logs', 'system_settings', 'pesan', 'announcements'].includes(schemaId);
             let canAdd = false;
+            
+            // PERBAIKAN: Pembatasan Hak Akses Tambah Data untuk Admin
             if (!isLocked && !isLogTable) {
-                if (isSuperAdmin && isUserTable) {
-                    canAdd = true; 
-                } else if (!isUserTable && schemaId !== 'schools') {
-                    canAdd = true;
+                if (isAdmin) {
+                    if (isSuperAdmin && isUserTable) canAdd = true; // Superadmin bisa tambah user
+                    if (schemaId === 'announcements' || schemaId === 'pesan') canAdd = true; // Admin bisa buat pengumuman/pesan
+                } else {
+                    // Role User/Sekolah
+                    if (schemaId !== 'schools') canAdd = true; // Sekolah bisa tambah data kecuali data identitas sekolah baru
                 }
             }
             
             const isSyncable = ['gtk', 'siswa'].includes(schemaId); 
-            const showImportExport = !isLocked && isSyncable;
+            const showImportExport = !isLocked && isSyncable && !isAdmin;
 
             const filterableFields = schema.fields.filter(f => f.type === 'select');
 
@@ -1589,20 +1594,29 @@
             
             const isLocked = appSettings.is_locked && !isAdmin;
             
+            // PERBAIKAN: Pembatasan Hak Akses Edit/Hapus Data untuk Admin
+            const isSchoolData = !['users', 'logs', 'system_settings', 'pesan', 'announcements'].includes(currentMenu);
             let canEdit = false;
             let canDelete = false;
+            
             if (!isLocked && !isLogTable) {
-                if (isSuperAdmin && isUserTable) {
-                    canEdit = true;
-                    canDelete = true;
-                } else if (!isUserTable) {
+                if (isAdmin) {
+                    if (isSuperAdmin && isUserTable) {
+                        canEdit = true;
+                        canDelete = true;
+                    }
+                    if (currentMenu === 'announcements' || currentMenu === 'pesan') {
+                        canEdit = (currentMenu === 'announcements');
+                        canDelete = true;
+                    }
+                    // Data sekolah otomatis Read-Only bagi Admin
+                } else {
+                    // Role User/Sekolah
                     canEdit = true;
                     canDelete = (currentMenu !== 'schools');
                 }
             }
 
-            const canEditStatusAdmin = isAdmin && (currentMenu === 'sptjm' || currentMenu === 'gedung'); 
-            const isAdminMessage = isAdmin && currentMenu === 'pesan'; 
             const canApprove = isAdmin && (currentMenu === 'gedung' || currentMenu === 'sptjm');
             
             const getSchoolName = (id) => {
@@ -1664,13 +1678,13 @@
                         rowHtml += `<td class="px-6 py-4">${cellValue || '-'}</td>`; 
                     });
 
-                    if(!isLogTable) {
+                    if(!isLogTable && !(isUserTable && !useMockData)) {
                         rowHtml += `<td class="px-6 py-4 text-center no-print whitespace-nowrap">
                             <button onclick="viewData('${row.id}')" class="text-green-600 hover:text-green-800 mx-1 bg-green-50 p-2 rounded" title="Lihat Detail"><i class="fa-solid fa-eye"></i></button>
-                            ${(canEdit || canEditStatusAdmin || isAdminMessage) && currentMenu !== 'pesan' ? `<button onclick="editData('${row.id}')" class="text-blue-600 hover:text-blue-800 mx-1 bg-blue-50 p-2 rounded" title="Edit Data"><i class="fa-solid fa-pen"></i></button>` : ''}
+                            ${canEdit && currentMenu !== 'pesan' ? `<button onclick="editData('${row.id}')" class="text-blue-600 hover:text-blue-800 mx-1 bg-blue-50 p-2 rounded" title="Edit Data"><i class="fa-solid fa-pen"></i></button>` : ''}
                             ${canApprove ? `<button onclick="quickUpdateStatus('${row.id}', '${currentMenu === 'gedung' ? 'Valid' : 'Disetujui'}')" class="text-emerald-600 hover:text-emerald-800 mx-1 bg-emerald-100 p-2 rounded" title="Validasi/Setujui"><i class="fa-solid fa-check"></i></button><button onclick="quickUpdateStatus('${row.id}', 'Ditolak')" class="text-rose-600 hover:text-rose-800 mx-1 bg-rose-100 p-2 rounded" title="Tolak"><i class="fa-solid fa-xmark"></i></button>` : ''}
-                            ${(canDelete || isAdminMessage) ? `<button onclick="deleteData('${row.id}')" class="text-red-600 hover:text-red-800 mx-1 bg-red-50 p-2 rounded" title="Hapus Data"><i class="fa-solid fa-trash"></i></button>` : ''}
-                            ${currentUser.role === 'super_admin' && currentMenu === 'users' ? `<button onclick="resetUserPassword('${row.id}')" class="text-orange-500 hover:text-orange-700 mx-1 bg-orange-50 p-2 rounded" title="Reset Password ke 123456"><i class="fa-solid fa-key"></i></button>` : ''}
+                            ${canDelete ? `<button onclick="deleteData('${row.id}')" class="text-red-600 hover:text-red-800 mx-1 bg-red-50 p-2 rounded" title="Hapus Data"><i class="fa-solid fa-trash"></i></button>` : ''}
+                            ${currentUser.role === 'super_admin' && currentMenu === 'users' && useMockData ? `<button onclick="resetUserPassword('${row.id}')" class="text-orange-500 hover:text-orange-700 mx-1 bg-orange-50 p-2 rounded" title="Reset Password ke 123456"><i class="fa-solid fa-key"></i></button>` : ''}
                             ${isAdmin && currentMenu === 'schools' ? `<button onclick="printSchoolProfile('${row.id}')" class="text-gray-600 hover:text-gray-900 mx-1 bg-gray-100 p-2 rounded" title="Cetak Profil Lengkap (PDF)"><i class="fa-solid fa-file-pdf"></i></button>` : ''}
                         </td>`;
                     }
