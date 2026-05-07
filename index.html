@@ -539,8 +539,8 @@
                 }
                 currentUser = storedUser;
                 
-                // PERBAIKAN: Cegat pengguna yang sudah terlanjur login jika password-nya masih 123456
-                if (String(currentUser.password) === '123456') {
+                // PERBAIKAN: Menghapus spasi tersembunyi (trim) untuk mencegah bug lolos pengecekan
+                if (String(currentUser.password).trim() === '123456') {
                     document.getElementById('login-screen').classList.remove('hidden');
                     forceChangePassword();
                 } else {
@@ -553,8 +553,8 @@
 
         async function handleLogin(e) {
             e.preventDefault();
-            const u = document.getElementById('username').value;
-            const p = document.getElementById('password').value;
+            const u = document.getElementById('username').value.trim();
+            const p = document.getElementById('password').value; // Mengambil password yang diketik pengguna
             const loader = document.getElementById('login-loader');
             const errorEl = document.getElementById('login-error');
             
@@ -581,8 +581,8 @@
                     currentUser = user; 
                     if(currentUser.role === 'admin') currentUser.role = 'super_admin';
                     
-                    // PERBAIKAN: Paksa ganti password jika masih menggunakan sandi bawaan (123456)
-                    if (String(currentUser.password) === '123456') {
+                    // PERBAIKAN: Cek dari DB dan juga dari inputan langsung pengguna (Double Check)
+                    if (String(currentUser.password).trim() === '123456' || p.trim() === '123456') {
                         forceChangePassword();
                     } else {
                         localStorage.setItem('sipas_user', JSON.stringify(currentUser)); 
@@ -597,6 +597,10 @@
 
         // FUNGSI BARU: Cegat pengguna dan paksa buat sandi baru
         async function forceChangePassword() {
+            // PERBAIKAN: Pastikan layar dashboard utama benar-benar dikunci agar user tidak tembus ke belakang
+            document.getElementById('app-screen').classList.add('hidden');
+            document.getElementById('login-screen').classList.remove('hidden');
+            
             const { value: formValues } = await Swal.fire({
                 title: 'Wajib Ganti Password!',
                 text: 'Demi keamanan, Anda wajib mengganti password bawaan (123456) sebelum dapat masuk ke sistem.',
