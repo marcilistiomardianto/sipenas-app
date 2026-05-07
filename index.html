@@ -91,6 +91,8 @@
             <div class="text-center w-64">
                 <p>Labuan Bajo, <span id="cetak-tanggal"></span></p>
                 <p class="mb-16">Mengetahui,</p>
+                <p class="mb-16">Kepala Dinas Pendidikan Kepemudaan dan Olahraga,</p>
+                <p class="mb-16">Kabupaten Manggarai Barat,</p>
                 <p id="ttd-nama" class="font-bold underline">Agustinus Gias, S.Pd</p>
                 <p id="ttd-pangkat">Pembina Utama Muda, IV/c</p>
                 <p id="ttd-nip">NIP. 19690813 199003 1 006</p>
@@ -259,9 +261,9 @@
         let mapInstance = null; 
         let appSettings = { periode: '2026/2027 Ganjil', is_locked: false }; 
         let idleTime = 0;
-        const IDLE_LIMIT = 30; 
+        const IDLE_LIMIT = 30; // Batas Waktu Idle dalam menit sebelum Auto-Logout
 
-        // Tambahan state untuk Profil Dinas
+        // State untuk Profil Dinas & Pusat Bantuan
         let appProfilDinas = {
             nama_pemda: 'Pemerintah Kabupaten Manggarai Barat',
             nama_dinas: 'Dinas Pendidikan Kepemudaan dan Olahraga',
@@ -269,7 +271,10 @@
             kontak: 'Email: pko@manggaraibaratkab.go.id | Website: https://pko.manggaraibaratkab.go.id',
             nama_kadis: 'Agustinus Gias, S.Pd',
             pangkat_kadis: 'Pembina Utama Muda, IV/c',
-            nip_kadis: 'NIP. 19690813 199003 1 006'
+            nip_kadis: 'NIP. 19690813 199003 1 006',
+            wa_helpdesk: '0812-3456-7890',
+            email_helpdesk: 'admin.sipenas@manggaraibaratkab.go.id',
+            file_panduan: ''
         };
 
         let dashData = {};
@@ -277,7 +282,7 @@
 
         const mockDB = {
             system_settings: { id: 1, periode: '2026/2027 Ganjil', is_locked: false },
-            profil_dinas: { id: 1, nama_pemda: 'Pemerintah Kabupaten Manggarai Barat', nama_dinas: 'Dinas Pendidikan Kepemudaan dan Olahraga', alamat: 'Jln. Sernaru No.3, Labuan Bajo', kontak: 'Email: pko@manggaraibaratkab.go.id | Website: https://pko.manggaraibaratkab.go.id', nama_kadis: 'Agustinus Gias, S.Pd', pangkat_kadis: 'Pembina Utama Muda, IV/c', nip_kadis: 'NIP. 19690813 199003 1 006' },
+            profil_dinas: { id: 1, nama_pemda: 'Pemerintah Kabupaten Manggarai Barat', nama_dinas: 'Dinas Pendidikan Kepemudaan dan Olahraga', alamat: 'Jln. Sernaru No.3, Labuan Bajo', kontak: 'Email: pko@manggaraibaratkab.go.id | Website: https://pko.manggaraibaratkab.go.id', nama_kadis: 'Agustinus Gias, S.Pd', pangkat_kadis: 'Pembina Utama Muda, IV/c', nip_kadis: 'NIP. 19690813 199003 1 006', wa_helpdesk: '0812-3456-7890', email_helpdesk: 'admin.sipenas@manggaraibaratkab.go.id', file_panduan: '' },
             users: [
                 { id: 1, username: 'superadmin', password: '123456', role: 'super_admin', nama_sekolah: 'Disdikpora (Super Admin)' },
                 { id: 3, username: 'adminsd', password: '123456', role: 'admin_sd', nama_sekolah: 'Dinas - Jenjang SD' },
@@ -524,7 +529,7 @@
             { id: 'pesan', label: 'Pesan & Teguran', icon: 'fa-envelope', roles: ['super_admin', 'admin_sd', 'admin_smp', 'user'] },
             { id: 'announcements', label: 'Pengumuman', icon: 'fa-bullhorn', roles: ['super_admin', 'admin_sd', 'admin_smp'] },
             { id: 'users', label: 'Manajemen User', icon: 'fa-user-shield', roles: ['super_admin'] },
-            { id: 'profil_dinas', label: 'Profil Dinas', icon: 'fa-building-flag', roles: ['super_admin'] },
+            { id: 'profil_dinas', label: 'Profil & Helpdesk', icon: 'fa-building-flag', roles: ['super_admin'] },
             { id: 'pengaturan', label: 'Pengaturan Sistem', icon: 'fa-sliders', roles: ['super_admin'] }, 
             { id: 'logs', label: 'Log Aktivitas', icon: 'fa-history', roles: ['super_admin'] },
             { id: 'bantuan', label: 'Pusat Bantuan', icon: 'fa-circle-question', roles: ['super_admin', 'admin_sd', 'admin_smp', 'user'] }
@@ -550,7 +555,7 @@
             try {
                 let storedUser = JSON.parse(localStorage.getItem('sipas_user'));
                 
-                // PEMBERSIH CACHE: Mencegah aplikasi macet karena menyimpan objek lama/rusak (seperti Supabase Auth lama)
+                // PEMBERSIH CACHE: Mencegah aplikasi macet karena menyimpan objek lama/rusak
                 if (storedUser && (!storedUser.username || !storedUser.role)) {
                     localStorage.removeItem('sipas_user');
                     storedUser = null;
@@ -563,7 +568,6 @@
                     }
                     currentUser = storedUser;
                     
-                    // PENGUNCI KEAMANAN Lapis 1: Cegat pengguna ter-cache yang sandinya belum diubah
                     if (String(currentUser.password).trim() === '123456') {
                         document.getElementById('login-screen').classList.remove('hidden');
                         document.getElementById('app-screen').classList.add('hidden');
@@ -575,7 +579,6 @@
                     document.getElementById('login-screen').classList.remove('hidden');
                 }
             } catch (e) {
-                // Jika localStorage rusak, bersihkan dan minta login ulang
                 localStorage.removeItem('sipas_user');
                 document.getElementById('login-screen').classList.remove('hidden');
             }
@@ -611,7 +614,6 @@
                     currentUser = user; 
                     if(currentUser.role === 'admin') currentUser.role = 'super_admin';
                     
-                    // PENGUNCI KEAMANAN Lapis 2: Cek sandi yang baru diketik atau sandi dari database
                     const isDefaultPassword = (String(currentUser.password).trim() === '123456' || p === '123456');
                     
                     if (isDefaultPassword) {
@@ -628,12 +630,10 @@
         }
 
         function forceChangePassword() {
-            // Pastikan UI berfokus pada pop-up dan layar utama dikunci rapat
             document.getElementById('app-screen').classList.add('hidden');
             document.getElementById('login-screen').classList.remove('hidden');
             document.getElementById('login-form').classList.add('opacity-0', 'pointer-events-none');
             
-            // Jeda 300ms agar browser selesai memproses UI sebelum menampilkan SweetAlert
             setTimeout(async () => {
                 const { value: formValues } = await Swal.fire({
                     title: 'Wajib Ganti Password!',
@@ -702,7 +702,7 @@
             localStorage.removeItem('sipas_user');
             
             if (isAuto) {
-                Swal.fire({ title: 'Sesi Habis', text: 'Auto-logout 30 menit demi keamanan.', icon: 'warning' }).then(() => window.location.reload());
+                Swal.fire({ title: 'Sesi Habis', text: 'Sistem telah mengeluarkan Anda secara otomatis karena tidak ada aktivitas selama 30 menit demi keamanan.', icon: 'warning' }).then(() => window.location.reload());
             } else {
                 window.location.reload();
             }
@@ -734,7 +734,7 @@
                 } catch(e) {
                     console.log("Menggunakan setting default.");
                 }
-                
+
                 try {
                     const { data: profilData } = await supabaseClient.from('profil_dinas').select('*').eq('id', 1).single();
                     if (profilData) appProfilDinas = profilData;
@@ -796,12 +796,14 @@
             } catch(e) {}
         }
 
+        // FITUR IDLE TIMEOUT LOGOUT
         function initIdleTimeout() {
             setInterval(() => {
                 idleTime++;
                 if (idleTime >= IDLE_LIMIT) handleLogout(true); 
-            }, 60000);
+            }, 60000); // Mengecek setiap 1 Menit
 
+            // Jika user bergerak, mengetik, scroll dll, Reset Waktu Timeout ke 0 kembali
             const resetIdle = () => idleTime = 0;
             window.addEventListener('mousemove', resetIdle);
             window.addEventListener('keypress', resetIdle);
@@ -832,11 +834,10 @@
             const displayNama = currentUser.nama_sekolah || currentUser.username;
             document.getElementById('sidebar-user-name').textContent = displayNama;
             document.getElementById('sidebar-user-role').textContent = `Role: ${currentUser.role.replace('_', ' ').toUpperCase()}`;
-            // Amankan render karakter jika data kosong
             document.getElementById('user-initial').textContent = (displayNama && displayNama.length > 0) ? displayNama.charAt(0).toUpperCase() : 'U';
             
             await loadSystemSettings(); 
-            initIdleTimeout();
+            initIdleTimeout(); // Memulai perhitungan Timeout
             renderSidebar();
             updateMessageNotification();
             loadPage('dashboard');
@@ -902,7 +903,7 @@
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-8 max-w-4xl mx-auto">
                 <div class="mb-8 border-b pb-4">
                     <h2 class="text-xl font-bold text-gray-800"><i class="fa-solid fa-building-flag text-blue-500 mr-2"></i> Profil Dinas & Pengaturan Cetak</h2>
-                    <p class="text-sm text-gray-500">Sesuaikan informasi Kop Surat dan Penandatangan (Kepala Dinas) untuk seluruh dokumen cetak.</p>
+                    <p class="text-sm text-gray-500">Sesuaikan informasi Kop Surat, Penandatangan, dan Kontak Helpdesk (Pusat Bantuan) secara dinamis.</p>
                 </div>
                 <form onsubmit="saveProfilDinas(event)">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -910,40 +911,61 @@
                             <h3 class="font-bold text-gray-700 mb-4 border-b pb-2">Informasi Kop Surat</h3>
                             <div class="mb-3">
                                 <label class="block text-xs font-bold text-gray-600 mb-1">Nama Pemerintah Daerah</label>
-                                <input type="text" id="pd-pemda" value="${appProfilDinas.nama_pemda}" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-dinas-500 outline-none" required>
+                                <input type="text" id="pd-pemda" value="${appProfilDinas.nama_pemda || ''}" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-dinas-500 outline-none" required>
                             </div>
                             <div class="mb-3">
                                 <label class="block text-xs font-bold text-gray-600 mb-1">Nama Instansi / Dinas</label>
-                                <input type="text" id="pd-dinas" value="${appProfilDinas.nama_dinas}" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-dinas-500 outline-none" required>
+                                <input type="text" id="pd-dinas" value="${appProfilDinas.nama_dinas || ''}" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-dinas-500 outline-none" required>
                             </div>
                             <div class="mb-3">
                                 <label class="block text-xs font-bold text-gray-600 mb-1">Alamat Lengkap</label>
-                                <textarea id="pd-alamat" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-dinas-500 outline-none" rows="2" required>${appProfilDinas.alamat}</textarea>
+                                <textarea id="pd-alamat" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-dinas-500 outline-none" rows="2" required>${appProfilDinas.alamat || ''}</textarea>
                             </div>
                             <div class="mb-3">
                                 <label class="block text-xs font-bold text-gray-600 mb-1">Kontak (Email / Website)</label>
-                                <input type="text" id="pd-kontak" value="${appProfilDinas.kontak}" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-dinas-500 outline-none" required>
+                                <input type="text" id="pd-kontak" value="${appProfilDinas.kontak || ''}" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-dinas-500 outline-none" required>
                             </div>
                         </div>
                         <div class="p-4 border border-gray-200 rounded-lg bg-gray-50">
                             <h3 class="font-bold text-gray-700 mb-4 border-b pb-2">Penandatangan (Kepala Dinas)</h3>
                             <div class="mb-3">
                                 <label class="block text-xs font-bold text-gray-600 mb-1">Nama Lengkap & Gelar</label>
-                                <input type="text" id="pd-nama" value="${appProfilDinas.nama_kadis}" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-dinas-500 outline-none" required>
+                                <input type="text" id="pd-nama" value="${appProfilDinas.nama_kadis || ''}" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-dinas-500 outline-none" required>
                             </div>
                             <div class="mb-3">
                                 <label class="block text-xs font-bold text-gray-600 mb-1">Pangkat / Golongan</label>
-                                <input type="text" id="pd-pangkat" value="${appProfilDinas.pangkat_kadis}" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-dinas-500 outline-none" required>
+                                <input type="text" id="pd-pangkat" value="${appProfilDinas.pangkat_kadis || ''}" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-dinas-500 outline-none" required>
                             </div>
                             <div class="mb-3">
                                 <label class="block text-xs font-bold text-gray-600 mb-1">NIP</label>
-                                <input type="text" id="pd-nip" value="${appProfilDinas.nip_kadis}" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-dinas-500 outline-none" required>
+                                <input type="text" id="pd-nip" value="${appProfilDinas.nip_kadis || ''}" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-dinas-500 outline-none" required>
                             </div>
                         </div>
+                        
+                        <!-- PUSAT BANTUAN DI KENDALIKAN DARI SINI -->
+                        <div class="p-4 border border-gray-200 rounded-lg bg-gray-50 md:col-span-2 shadow-inner">
+                            <h3 class="font-bold text-gray-700 mb-4 border-b pb-2"><i class="fa-solid fa-headset text-blue-500 mr-2"></i> Pusat Bantuan & Buku Panduan</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div class="mb-3">
+                                    <label class="block text-xs font-bold text-gray-600 mb-1"><i class="fa-brands fa-whatsapp text-green-500"></i> WhatsApp Helpdesk</label>
+                                    <input type="text" id="pd-wa" value="${appProfilDinas.wa_helpdesk || ''}" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-dinas-500 outline-none" required placeholder="Contoh: 0812-3456-7890">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="block text-xs font-bold text-gray-600 mb-1"><i class="fa-solid fa-envelope text-red-500"></i> Email Helpdesk</label>
+                                    <input type="text" id="pd-email" value="${appProfilDinas.email_helpdesk || ''}" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-dinas-500 outline-none" required placeholder="admin@domain.com">
+                                </div>
+                                <div class="mb-3 md:col-span-2 border-t pt-4">
+                                    <label class="block text-xs font-bold text-gray-600 mb-2"><i class="fa-solid fa-file-pdf text-red-500"></i> Upload Buku Panduan Pengguna (PDF)</label>
+                                    <input type="file" id="pd-panduan" accept=".pdf" class="w-full p-2 border border-gray-300 rounded bg-white text-sm focus:outline-none">
+                                    ${appProfilDinas.file_panduan ? `<p class="text-xs text-green-600 mt-2 font-semibold"><i class="fa-solid fa-check-circle"></i> File Panduan Saat Ini Sudah Tersedia di Database</p>` : `<p class="text-xs text-red-500 mt-2">Belum ada file panduan yang diunggah untuk pengguna.</p>`}
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
                     <div class="flex justify-end">
                         <button type="submit" class="px-6 py-2.5 bg-dinas-800 text-white font-bold rounded hover:bg-dinas-900 transition flex items-center shadow-lg">
-                            <i class="fa-solid fa-save mr-2"></i> Simpan Profil Dinas
+                            <i class="fa-solid fa-save mr-2"></i> Simpan Profil & Helpdesk
                         </button>
                     </div>
                 </form>
@@ -952,6 +974,9 @@
 
         async function saveProfilDinas(e) {
             e.preventDefault();
+            const btnSave = e.target.querySelector('button[type="submit"]');
+            const originalBtnText = btnSave.innerHTML;
+            
             const payload = {
                 nama_pemda: document.getElementById('pd-pemda').value,
                 nama_dinas: document.getElementById('pd-dinas').value,
@@ -959,26 +984,67 @@
                 kontak: document.getElementById('pd-kontak').value,
                 nama_kadis: document.getElementById('pd-nama').value,
                 pangkat_kadis: document.getElementById('pd-pangkat').value,
-                nip_kadis: document.getElementById('pd-nip').value
+                nip_kadis: document.getElementById('pd-nip').value,
+                wa_helpdesk: document.getElementById('pd-wa').value,
+                email_helpdesk: document.getElementById('pd-email').value
             };
 
-            if (useMockData) {
-                mockDB.profil_dinas = { id: 1, ...payload };
-                appProfilDinas = payload;
-                applyProfilDinasToDOM();
-                logActivity('Mengubah Profil Dinas & Kop Surat');
-                Swal.fire('Berhasil!', 'Profil Dinas & Informasi Cetak berhasil diperbarui.', 'success');
-            } else {
-                Swal.fire({ title: 'Menyimpan...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-                const { error } = await supabaseClient.from('profil_dinas').upsert({ id: 1, ...payload });
-                if (error) {
-                    Swal.fire('Error!', error.message, 'error');
+            const fileInput = document.getElementById('pd-panduan');
+            
+            try {
+                btnSave.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Memproses...`;
+                btnSave.disabled = true;
+
+                if (fileInput.files && fileInput.files.length > 0) {
+                    const file = fileInput.files[0];
+                    if (file.type !== 'application/pdf') {
+                        Swal.fire('Format Salah', 'Buku Panduan harus berformat PDF.', 'error');
+                        return;
+                    }
+                    if (file.size > 5 * 1024 * 1024) { 
+                        Swal.fire('Terlalu Besar', 'Maksimal ukuran file PDF adalah 5MB.', 'error');
+                        return;
+                    }
+
+                    if (useMockData) {
+                        payload.file_panduan = 'Buku_Panduan_SIPENAS_Mock.pdf';
+                    } else {
+                        btnSave.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Mengunggah PDF...`;
+                        const fileName = `panduan_${Date.now()}.pdf`;
+                        const filePath = `system/${fileName}`;
+                        
+                        const { data: uploadData, error: uploadError } = await supabaseClient.storage.from('sipas_files').upload(filePath, file);
+                        if (uploadError) throw uploadError;
+                        const { data: publicUrlData } = supabaseClient.storage.from('sipas_files').getPublicUrl(filePath);
+                        payload.file_panduan = publicUrlData.publicUrl;
+                    }
                 } else {
+                    payload.file_panduan = appProfilDinas.file_panduan || '';
+                }
+
+                if (useMockData) {
+                    mockDB.profil_dinas = { id: 1, ...payload };
                     appProfilDinas = payload;
                     applyProfilDinasToDOM();
-                    logActivity('Mengubah Profil Dinas & Kop Surat');
-                    Swal.fire('Berhasil!', 'Profil Dinas & Informasi Cetak berhasil diperbarui.', 'success');
+                    logActivity('Mengubah Profil Dinas & Pusat Bantuan');
+                    Swal.fire('Berhasil!', 'Profil Dinas & Informasi Pusat Bantuan berhasil diperbarui.', 'success');
+                } else {
+                    Swal.fire({ title: 'Menyimpan...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                    const { error } = await supabaseClient.from('profil_dinas').upsert({ id: 1, ...payload });
+                    if (error) {
+                        Swal.fire('Error!', error.message, 'error');
+                    } else {
+                        appProfilDinas = payload;
+                        applyProfilDinasToDOM();
+                        logActivity('Mengubah Profil Dinas & Pusat Bantuan');
+                        Swal.fire('Berhasil!', 'Profil Dinas & Informasi Pusat Bantuan berhasil diperbarui.', 'success');
+                    }
                 }
+            } catch(err) {
+                Swal.fire('Error', err.message, 'error');
+            } finally {
+                btnSave.innerHTML = originalBtnText;
+                btnSave.disabled = false;
             }
         }
 
@@ -1086,17 +1152,19 @@
                 <div class="text-center mb-8 border-b pb-6">
                     <i class="fa-solid fa-headset text-5xl text-blue-500 mb-4"></i>
                     <h2 class="text-2xl font-bold text-gray-800">Pusat Bantuan SIPENAS</h2>
-                    <p class="text-gray-500">Panduan Penggunaan dan Kontak Layanan Dinas</p>
+                    <p class="text-gray-500">Panduan Penggunaan dan Kontak Layanan Dinas Terpadu</p>
                 </div>
                 
                 <div class="mb-8">
                     <h3 class="text-lg font-bold text-gray-800 mb-4"><i class="fa-solid fa-book text-blue-500 mr-2"></i> Panduan Pengguna (User Manual)</h3>
                     <div class="p-4 bg-blue-50 border border-blue-100 rounded flex justify-between items-center">
                         <div>
-                            <p class="font-semibold text-blue-900">Buku Panduan Operator Sekolah v1.0</p>
-                            <p class="text-xs text-blue-700">PDF, 2.5 MB</p>
+                            <p class="font-semibold text-blue-900">Buku Panduan Operator Sekolah</p>
+                            <p class="text-xs text-blue-700">Format: PDF Terkini</p>
                         </div>
-                        <button onclick="Swal.fire('Info', 'Fitur unduh dokumen panduan akan tersedia pada rilis berikutnya.', 'info')" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm transition shadow"><i class="fa-solid fa-download mr-2"></i> Unduh PDF</button>
+                        ${appProfilDinas.file_panduan ? 
+                        `<a href="${appProfilDinas.file_panduan}" target="_blank" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm transition shadow flex items-center"><i class="fa-solid fa-download mr-2"></i> Unduh PDF</a>` 
+                        : `<button onclick="Swal.fire('Info', 'Dokumen panduan belum diunggah oleh Admin Dinas.', 'info')" class="px-4 py-2 bg-gray-400 text-white rounded cursor-not-allowed text-sm transition shadow flex items-center"><i class="fa-solid fa-download mr-2"></i> Belum Tersedia</button>`}
                     </div>
                 </div>
 
@@ -1131,8 +1199,8 @@
                     <h3 class="text-lg font-bold text-gray-800 mb-4"><i class="fa-solid fa-envelope text-orange-500 mr-2"></i> Kontak Layanan</h3>
                     <p class="text-sm text-gray-600 mb-2">Jika Anda mengalami kendala teknis yang tidak ada di FAQ, hubungi Helpdesk kami:</p>
                     <ul class="text-sm text-gray-800 space-y-2 font-medium">
-                        <li><i class="fa-brands fa-whatsapp text-green-500 w-5"></i> WA Center: 0812-3456-7890 (Jam Kerja)</li>
-                        <li><i class="fa-solid fa-envelope text-red-500 w-5"></i> Email: admin.sipenas@manggaraibaratkab.go.id</li>
+                        <li><i class="fa-brands fa-whatsapp text-green-500 w-5"></i> WA Center: ${appProfilDinas.wa_helpdesk || 'Belum diatur'} (Jam Kerja)</li>
+                        <li><i class="fa-solid fa-envelope text-red-500 w-5"></i> Email: ${appProfilDinas.email_helpdesk || 'Belum diatur'}</li>
                     </ul>
                 </div>
             </div>`;
