@@ -673,7 +673,12 @@
             } else {
                 try {
                     const { data } = await supabaseClient.from('system_settings').select('*').eq('id', 1).single();
-                    if (data) appSettings = data;
+                    if (data) {
+                        appSettings = {
+                            periode: data.periode || '2026/2027 Ganjil',
+                            is_locked: data.is_locked || false
+                        };
+                    }
                 } catch(e) {
                     console.log("Menggunakan setting default.");
                 }
@@ -1538,6 +1543,24 @@
             const schema = schemas[schemaId];
             const content = document.getElementById('dynamic-content');
             
+            // [PERBAIKAN] Wajib isi Identitas terlebih dahulu agar data sarpras tidak tersimpan melayang (tanpa ID)
+            if (currentUser.role === 'user' && !['schools', 'pesan', 'announcements'].includes(schemaId)) {
+                if (!currentUser.sekolah_id) {
+                    content.innerHTML = `
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center max-w-2xl mx-auto mt-10">
+                        <div class="inline-flex items-center justify-center w-20 h-20 bg-yellow-100 rounded-full mb-6">
+                            <i class="fa-solid fa-triangle-exclamation text-4xl text-yellow-600"></i>
+                        </div>
+                        <h2 class="text-2xl font-bold text-gray-800 mb-4">Tindakan Diperlukan!</h2>
+                        <p class="text-gray-600 mb-8">Anda wajib mengisi dan menyimpan <b>Data Identitas Sekolah</b> terlebih dahulu sebelum dapat menginput data menu lainnya (GTK, Siswa, dll) agar terhubung dengan benar.</p>
+                        <button onclick="loadPage('schools')" class="px-6 py-3 bg-dinas-800 text-white font-bold rounded-lg shadow-lg hover:bg-dinas-900 transition flex items-center mx-auto">
+                            <i class="fa-solid fa-school mr-2"></i> Buka Menu Identitas
+                        </button>
+                    </div>`;
+                    return;
+                }
+            }
+
             currentTableData = await fetchTableData(schema.table);
             if (schemaId === 'logs' && useMockData) currentTableData = currentTableData.reverse(); 
             
@@ -2076,7 +2099,8 @@
                 }
 
                 if (currentUser.role === 'user' && !['schools', 'pesan', 'announcements'].includes(schema.table)) {
-                    payload.sekolah_id = currentUser.sekolah_id || 1;
+                    // [PERBAIKAN] Hanya menggunakan ID Sekolah asli untuk mencegah data tersimpan di ID default (1)
+                    payload.sekolah_id = currentUser.sekolah_id;
                 }
                 
                 // PERBAIKAN BUG ID KOSONG:
