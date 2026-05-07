@@ -56,9 +56,12 @@
         @media print {
             body * { visibility: hidden; }
             #cetak-area, #cetak-area * { visibility: visible; }
-            #cetak-area { position: absolute; left: 0; top: 0; width: 100%; padding: 20px; background: white; z-index: 9999; }
+            /* PERBAIKAN: Memaksa display menjadi block agar tidak tersembunyi lagi */
+            #cetak-area { position: absolute; left: 0; top: 0; width: 100%; padding: 20px; background: white; z-index: 9999; display: block !important; }
             .no-print { display: none !important; }
             #app-screen { display: none !important; }
+            /* Tambahan agar warna background tabel abu-abu ikut tercetak rapi */
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         }
     </style>
 </head>
