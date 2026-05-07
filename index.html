@@ -2557,7 +2557,7 @@
 
             Swal.fire({
                 title: 'Apakah Anda yakin?',
-                text: "Data yang dihapus tidak dapat dikembalikan!",
+                text: currentMenu === 'schools' ? "Data yang dihapus tidak dapat dikembalikan! Menghapus Identitas Sekolah juga akan menghapus SELURUH data (GTK, Siswa, Sarpras) yang terhubung dengannya." : "Data yang dihapus tidak dapat dikembalikan!",
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#d33',
@@ -2569,13 +2569,37 @@
                     const schema = schemas[currentMenu]; 
                     if (useMockData) { 
                         mockDB[schema.table] = mockDB[schema.table].filter(x => String(x.id) !== String(id)); 
+                        
+                        // [PERBAIKAN] Membersihkan data anak secara manual di Mock Mode
+                        if (schema.table === 'schools') {
+                            const childTables = ['gtk', 'siswa', 'gedung', 'meubeler', 'peralatan_it', 'ensiklopedia', 'pip', 'bos', 'akreditasi', 'sptjm', 'pesan'];
+                            childTables.forEach(t => {
+                                if (mockDB[t]) mockDB[t] = mockDB[t].filter(x => String(x.sekolah_id) !== String(id));
+                            });
+                            mockDB.users.forEach(u => {
+                                if (String(u.sekolah_id) === String(id)) u.sekolah_id = null;
+                            });
+                        }
+
                         logActivity(`Menghapus data di tabel ${schema.title}`);
                         loadPage(currentMenu); 
                         Swal.fire('Terhapus!', 'Data berhasil dihapus dari sistem.', 'success');
                     } else { 
-                        Swal.fire({ title: 'Menghapus...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                        Swal.fire({ title: 'Menghapus Data & Relasi...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                         try {
                             const targetId = isNaN(id) ? id : parseInt(id);
+                            
+                            // [PERBAIKAN] CASCADING DELETE MANUAL FRONTEND
+                            // Menyapu bersih seluruh data terkait terlebih dahulu agar tidak terjadi pelanggaran Foreign Key Constraint
+                            if (schema.table === 'schools') {
+                                const childTables = ['gtk', 'siswa', 'gedung', 'meubeler', 'peralatan_it', 'ensiklopedia', 'pip', 'bos', 'akreditasi', 'sptjm', 'pesan'];
+                                for (const childTable of childTables) {
+                                    await supabaseClient.from(childTable).delete().eq('sekolah_id', targetId);
+                                }
+                                // Lepaskan ID sekolah dari akun User agar tidak menyangkut
+                                await supabaseClient.from('users').update({ sekolah_id: null }).eq('sekolah_id', targetId);
+                            }
+
                             const { data, error } = await supabaseClient.from(schema.table).delete().eq('id', targetId).select(); 
                             
                             if (error) throw error;
@@ -2586,7 +2610,7 @@
 
                             logActivity(`Menghapus data di tabel ${schema.title}`);
                             loadPage(currentMenu); 
-                            Swal.fire('Terhapus!', 'Data berhasil dihapus dari database utama.', 'success');
+                            Swal.fire('Terhapus!', 'Data beserta seluruh relasinya berhasil dihapus secara bersih.', 'success');
                         } catch (err) {
                             Swal.fire('Gagal!', err.message, 'error');
                         }
