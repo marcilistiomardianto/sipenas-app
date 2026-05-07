@@ -1374,6 +1374,18 @@
                 }
 
                 if (currentUser.role === 'user' && !['users', 'logs', 'system_settings', 'announcements'].includes(tableName)) {
+                    // [PERBAIKAN] Auto-recovery Lapis 1: Jika ID Sekolah kosong, coba tautkan berdasarkan Nama Sekolah
+                    if (!currentUser.sekolah_id && tableName === 'schools') {
+                        try {
+                            const { data: recSchool } = await supabaseClient.from('schools').select('id').eq('nama', currentUser.nama_sekolah).limit(1);
+                            if (recSchool && recSchool.length > 0) {
+                                currentUser.sekolah_id = recSchool[0].id;
+                                localStorage.setItem('sipas_user', JSON.stringify(currentUser));
+                                await supabaseClient.from('users').update({ sekolah_id: recSchool[0].id }).eq('id', currentUser.id);
+                            }
+                        } catch(e) { console.error("Recovery name error", e); }
+                    }
+
                     if (!currentUser.sekolah_id) return []; // Tahan fetch jika belum punya ID
 
                     if(tableName === 'schools') query = query.eq('id', currentUser.sekolah_id);
@@ -1896,14 +1908,39 @@
             for (const f of schema.fields) {
                 if (f.unique && payload[f.name]) {
                     let isDuplicate = false;
+                    let existingId = null;
                     if (useMockData) {
-                        isDuplicate = mockDB[schema.table].some(d => d[f.name] === payload[f.name] && String(d.id) !== String(editingId));
+                        const dupData = mockDB[schema.table].find(d => d[f.name] === payload[f.name] && String(d.id) !== String(editingId));
+                        if(dupData) {
+                            isDuplicate = true;
+                            existingId = dupData.id;
+                        }
                     } else {
                         const { data } = await supabaseClient.from(schema.table).select('id').eq(f.name, payload[f.name]).neq('id', editingId || '0');
-                        if (data && data.length > 0) isDuplicate = true;
+                        if (data && data.length > 0) {
+                            isDuplicate = true;
+                            existingId = data[0].id;
+                        }
                     }
                     
                     if (isDuplicate) {
+                        // [PERBAIKAN] Auto-recovery Lapis 2: Jika mencoba menginput NPSN yang sama karena belum tertaut
+                        if (!editingId && schema.table === 'schools' && currentUser.role === 'user' && f.name === 'npsn' && existingId) {
+                            currentUser.sekolah_id = existingId;
+                            localStorage.setItem('sipas_user', JSON.stringify(currentUser));
+                            if (!useMockData) await supabaseClient.from('users').update({ sekolah_id: existingId }).eq('id', currentUser.id);
+                            else {
+                                const uIdx = mockDB.users.findIndex(x => String(x.id) === String(currentUser.id));
+                                if (uIdx > -1) mockDB.users[uIdx].sekolah_id = existingId;
+                            }
+                            
+                            Swal.fire('Data Ditemukan!', 'Sekolah Anda sebenarnya sudah terdaftar di sistem. Kami telah menautkannya kembali ke akun Anda.', 'success').then(() => {
+                                closeModal();
+                                loadPage(currentMenu);
+                            });
+                            return;
+                        }
+
                         Swal.fire('Validasi Gagal!', `${f.label} "${payload[f.name]}" sudah terdaftar di sistem. Tidak boleh ada data duplikat!`, 'warning');
                         return; 
                     }
@@ -1986,11 +2023,11 @@
                     delete payload.id;
                 }
 
-                if (currentMenu === 'sptjm' && !editingId) {
-                    payload.status = 'Menunggu'; 
+                if (currentMenu === 'sptjm') {
+                    if (!editingId || currentUser.role === 'user') payload.status = 'Menunggu'; 
                 }
-                if (currentMenu === 'gedung' && !editingId) {
-                    payload.status_verifikasi = 'Menunggu'; 
+                if (currentMenu === 'gedung') {
+                    if (!editingId || currentUser.role === 'user') payload.status_verifikasi = 'Menunggu'; 
                 }
                 if (currentMenu === 'pesan' && !editingId) {
                     payload.status = 'Unread';
@@ -2035,25 +2072,27 @@
                 } else {
                     let result;
                     if (editingId) {
-                        result = await supabaseClient.from(schema.table).update(payload).eq('id', editingId);
+                        result = await supabaseClient.from(schema.table).update(payload).eq('id', editingId).select();
                     } else {
                         result = await supabaseClient.from(schema.table).insert([payload]).select();
                     }
                     
                     if (result.error) throw result.error;
 
-                    // [PERBAIKAN AUTO-LINK BERDASARKAN NPSN] 
+                    // [PERBAIKAN Lapis 3] Mengunci ID sekolah secara sempurna saat pertama kali insert
                     if (!editingId && schema.table === 'schools' && currentUser.role === 'user') {
                         try {
-                            // Mencari kembali ke database berdasarkan data NPSN (karena NPSN diwajibkan unik)
-                            // Ini menggaransi kita menangkap ID yang baru saja digenerate oleh Supabase
-                            const { data: newSchool } = await supabaseClient.from('schools').select('id').eq('npsn', payload.npsn).single();
-                            if (newSchool && newSchool.id) {
-                                const newSchoolId = newSchool.id;
-                                // Simpan ke memori user yg sedang aktif
+                            let newSchoolId = null;
+                            if (result.data && result.data.length > 0) {
+                                newSchoolId = result.data[0].id;
+                            } else {
+                                const { data: newSchool } = await supabaseClient.from('schools').select('id').eq('npsn', payload.npsn).single();
+                                if (newSchool) newSchoolId = newSchool.id;
+                            }
+
+                            if (newSchoolId) {
                                 currentUser.sekolah_id = newSchoolId;
                                 localStorage.setItem('sipas_user', JSON.stringify(currentUser));
-                                // Tautkan dan simpan secara permanen ke tabel User
                                 await supabaseClient.from('users').update({ sekolah_id: newSchoolId }).eq('id', currentUser.id);
                             }
                         } catch (err) {
