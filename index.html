@@ -78,10 +78,10 @@
                 <i class="fa-solid fa-shield-halved text-6xl text-gray-800"></i>
             </div>
             <div class="flex-1 px-4">
-                <h2 class="text-xl font-bold uppercase tracking-wide">Pemerintah Kabupaten Manggarai Barat</h2>
-                <h1 class="text-2xl font-bold uppercase tracking-wide">Dinas Pendidikan Kepemudaan dan Olahraga</h1>
-                <p class="text-sm">Jln. Sernaru No.3, Labuan Bajo</p>
-                <p class="text-sm italic">Email: pko@manggaraibaratkab.go.id | Website: https://pko.manggaraibaratkab.go.id</p>
+                <h2 id="kop-pemda" class="text-xl font-bold uppercase tracking-wide">Pemerintah Kabupaten Manggarai Barat</h2>
+                <h1 id="kop-dinas" class="text-2xl font-bold uppercase tracking-wide">Dinas Pendidikan Kepemudaan dan Olahraga</h1>
+                <p id="kop-alamat" class="text-sm">Jln. Sernaru No.3, Labuan Bajo</p>
+                <p id="kop-kontak" class="text-sm italic">Email: pko@manggaraibaratkab.go.id | Website: https://pko.manggaraibaratkab.go.id</p>
             </div>
             <div class="w-24 flex-shrink-0"></div>
         </div>
@@ -91,9 +91,9 @@
             <div class="text-center w-64">
                 <p>Labuan Bajo, <span id="cetak-tanggal"></span></p>
                 <p class="mb-16">Mengetahui,</p>
-                <p class="font-bold underline">Agustinus Gias, S.Pd</p>
-                <p>Pembina Utama Muda, IV/c</p>
-                <p>NIP. 19690813 199003 1 006</p>
+                <p id="ttd-nama" class="font-bold underline">Agustinus Gias, S.Pd</p>
+                <p id="ttd-pangkat">Pembina Utama Muda, IV/c</p>
+                <p id="ttd-nip">NIP. 19690813 199003 1 006</p>
             </div>
         </div>
     </div>
@@ -118,7 +118,7 @@
                     <label class="block text-sm font-medium text-gray-700 mb-1" id="login-label">Username</label>
                     <div class="relative">
                         <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400"><i class="fa-solid fa-user"></i></span>
-                        <input type="text" id="username" class="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-dinas-500" required placeholder="npsn sekolah">
+                        <input type="text" id="username" class="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-dinas-500" required placeholder="NPSN Sekolah">
                     </div>
                 </div>
                 <div class="mb-6">
@@ -261,11 +261,23 @@
         let idleTime = 0;
         const IDLE_LIMIT = 30; 
 
+        // Tambahan state untuk Profil Dinas
+        let appProfilDinas = {
+            nama_pemda: 'Pemerintah Kabupaten Manggarai Barat',
+            nama_dinas: 'Dinas Pendidikan Kepemudaan dan Olahraga',
+            alamat: 'Jln. Sernaru No.3, Labuan Bajo',
+            kontak: 'Email: pko@manggaraibaratkab.go.id | Website: https://pko.manggaraibaratkab.go.id',
+            nama_kadis: 'Agustinus Gias, S.Pd',
+            pangkat_kadis: 'Pembina Utama Muda, IV/c',
+            nip_kadis: 'NIP. 19690813 199003 1 006'
+        };
+
         let dashData = {};
         let dashCharts = {};
 
         const mockDB = {
             system_settings: { id: 1, periode: '2026/2027 Ganjil', is_locked: false },
+            profil_dinas: { id: 1, nama_pemda: 'Pemerintah Kabupaten Manggarai Barat', nama_dinas: 'Dinas Pendidikan Kepemudaan dan Olahraga', alamat: 'Jln. Sernaru No.3, Labuan Bajo', kontak: 'Email: pko@manggaraibaratkab.go.id | Website: https://pko.manggaraibaratkab.go.id', nama_kadis: 'Agustinus Gias, S.Pd', pangkat_kadis: 'Pembina Utama Muda, IV/c', nip_kadis: 'NIP. 19690813 199003 1 006' },
             users: [
                 { id: 1, username: 'superadmin', password: '123456', role: 'super_admin', nama_sekolah: 'Disdikpora (Super Admin)' },
                 { id: 3, username: 'adminsd', password: '123456', role: 'admin_sd', nama_sekolah: 'Dinas - Jenjang SD' },
@@ -512,6 +524,7 @@
             { id: 'pesan', label: 'Pesan & Teguran', icon: 'fa-envelope', roles: ['super_admin', 'admin_sd', 'admin_smp', 'user'] },
             { id: 'announcements', label: 'Pengumuman', icon: 'fa-bullhorn', roles: ['super_admin', 'admin_sd', 'admin_smp'] },
             { id: 'users', label: 'Manajemen User', icon: 'fa-user-shield', roles: ['super_admin'] },
+            { id: 'profil_dinas', label: 'Profil Dinas', icon: 'fa-building-flag', roles: ['super_admin'] },
             { id: 'pengaturan', label: 'Pengaturan Sistem', icon: 'fa-sliders', roles: ['super_admin'] }, 
             { id: 'logs', label: 'Log Aktivitas', icon: 'fa-history', roles: ['super_admin'] },
             { id: 'bantuan', label: 'Pusat Bantuan', icon: 'fa-circle-question', roles: ['super_admin', 'admin_sd', 'admin_smp', 'user'] }
@@ -708,6 +721,7 @@
         async function loadSystemSettings() {
             if (useMockData) {
                 appSettings = mockDB.system_settings;
+                if(mockDB.profil_dinas) appProfilDinas = mockDB.profil_dinas;
             } else {
                 try {
                     const { data } = await supabaseClient.from('system_settings').select('*').eq('id', 1).single();
@@ -720,8 +734,28 @@
                 } catch(e) {
                     console.log("Menggunakan setting default.");
                 }
+                
+                try {
+                    const { data: profilData } = await supabaseClient.from('profil_dinas').select('*').eq('id', 1).single();
+                    if (profilData) appProfilDinas = profilData;
+                } catch(e) {
+                    console.log("Gagal memuat profil dinas.");
+                }
             }
             updateHeaderStatus();
+            applyProfilDinasToDOM();
+        }
+
+        function applyProfilDinasToDOM() {
+            if (!appProfilDinas) return;
+            document.getElementById('kop-pemda').textContent = appProfilDinas.nama_pemda;
+            document.getElementById('kop-dinas').textContent = appProfilDinas.nama_dinas;
+            document.getElementById('kop-alamat').textContent = appProfilDinas.alamat;
+            document.getElementById('kop-kontak').textContent = appProfilDinas.kontak;
+            
+            document.getElementById('ttd-nama').textContent = appProfilDinas.nama_kadis;
+            document.getElementById('ttd-pangkat').textContent = appProfilDinas.pangkat_kadis;
+            document.getElementById('ttd-nip').textContent = appProfilDinas.nip_kadis;
         }
 
         function updateHeaderStatus() {
@@ -856,9 +890,96 @@
                 if (menuId === 'dashboard') renderDashboard();
                 else if (menuId === 'peta') renderMap();
                 else if (menuId === 'pengaturan') renderSystemSettings(); 
+                else if (menuId === 'profil_dinas') renderProfilDinas();
                 else if (menuId === 'bantuan') renderHelpdesk();
                 else if (schemas[menuId]) renderDataTable(menuId);
             }, 500);
+        }
+
+        function renderProfilDinas() {
+            const content = document.getElementById('dynamic-content');
+            content.innerHTML = `
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-8 max-w-4xl mx-auto">
+                <div class="mb-8 border-b pb-4">
+                    <h2 class="text-xl font-bold text-gray-800"><i class="fa-solid fa-building-flag text-blue-500 mr-2"></i> Profil Dinas & Pengaturan Cetak</h2>
+                    <p class="text-sm text-gray-500">Sesuaikan informasi Kop Surat dan Penandatangan (Kepala Dinas) untuk seluruh dokumen cetak.</p>
+                </div>
+                <form onsubmit="saveProfilDinas(event)">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <div class="p-4 border border-gray-200 rounded-lg bg-gray-50">
+                            <h3 class="font-bold text-gray-700 mb-4 border-b pb-2">Informasi Kop Surat</h3>
+                            <div class="mb-3">
+                                <label class="block text-xs font-bold text-gray-600 mb-1">Nama Pemerintah Daerah</label>
+                                <input type="text" id="pd-pemda" value="${appProfilDinas.nama_pemda}" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-dinas-500 outline-none" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="block text-xs font-bold text-gray-600 mb-1">Nama Instansi / Dinas</label>
+                                <input type="text" id="pd-dinas" value="${appProfilDinas.nama_dinas}" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-dinas-500 outline-none" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="block text-xs font-bold text-gray-600 mb-1">Alamat Lengkap</label>
+                                <textarea id="pd-alamat" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-dinas-500 outline-none" rows="2" required>${appProfilDinas.alamat}</textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label class="block text-xs font-bold text-gray-600 mb-1">Kontak (Email / Website)</label>
+                                <input type="text" id="pd-kontak" value="${appProfilDinas.kontak}" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-dinas-500 outline-none" required>
+                            </div>
+                        </div>
+                        <div class="p-4 border border-gray-200 rounded-lg bg-gray-50">
+                            <h3 class="font-bold text-gray-700 mb-4 border-b pb-2">Penandatangan (Kepala Dinas)</h3>
+                            <div class="mb-3">
+                                <label class="block text-xs font-bold text-gray-600 mb-1">Nama Lengkap & Gelar</label>
+                                <input type="text" id="pd-nama" value="${appProfilDinas.nama_kadis}" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-dinas-500 outline-none" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="block text-xs font-bold text-gray-600 mb-1">Pangkat / Golongan</label>
+                                <input type="text" id="pd-pangkat" value="${appProfilDinas.pangkat_kadis}" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-dinas-500 outline-none" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="block text-xs font-bold text-gray-600 mb-1">NIP</label>
+                                <input type="text" id="pd-nip" value="${appProfilDinas.nip_kadis}" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-dinas-500 outline-none" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex justify-end">
+                        <button type="submit" class="px-6 py-2.5 bg-dinas-800 text-white font-bold rounded hover:bg-dinas-900 transition flex items-center shadow-lg">
+                            <i class="fa-solid fa-save mr-2"></i> Simpan Profil Dinas
+                        </button>
+                    </div>
+                </form>
+            </div>`;
+        }
+
+        async function saveProfilDinas(e) {
+            e.preventDefault();
+            const payload = {
+                nama_pemda: document.getElementById('pd-pemda').value,
+                nama_dinas: document.getElementById('pd-dinas').value,
+                alamat: document.getElementById('pd-alamat').value,
+                kontak: document.getElementById('pd-kontak').value,
+                nama_kadis: document.getElementById('pd-nama').value,
+                pangkat_kadis: document.getElementById('pd-pangkat').value,
+                nip_kadis: document.getElementById('pd-nip').value
+            };
+
+            if (useMockData) {
+                mockDB.profil_dinas = { id: 1, ...payload };
+                appProfilDinas = payload;
+                applyProfilDinasToDOM();
+                logActivity('Mengubah Profil Dinas & Kop Surat');
+                Swal.fire('Berhasil!', 'Profil Dinas & Informasi Cetak berhasil diperbarui.', 'success');
+            } else {
+                Swal.fire({ title: 'Menyimpan...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                const { error } = await supabaseClient.from('profil_dinas').upsert({ id: 1, ...payload });
+                if (error) {
+                    Swal.fire('Error!', error.message, 'error');
+                } else {
+                    appProfilDinas = payload;
+                    applyProfilDinasToDOM();
+                    logActivity('Mengubah Profil Dinas & Kop Surat');
+                    Swal.fire('Berhasil!', 'Profil Dinas & Informasi Cetak berhasil diperbarui.', 'success');
+                }
+            }
         }
 
         function renderSystemSettings() {
