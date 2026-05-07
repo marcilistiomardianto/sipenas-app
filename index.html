@@ -56,7 +56,7 @@
         @media print {
             body * { visibility: hidden; }
             #cetak-area, #cetak-area * { visibility: visible; }
-            /* PERBAIKAN: Memaksa display menjadi block agar tidak tersembunyi lagi */
+            /* Memaksa display menjadi block agar tidak tersembunyi lagi di kertas cetak */
             #cetak-area { position: absolute; left: 0; top: 0; width: 100%; padding: 20px; background: white; z-index: 9999; display: block !important; }
             .no-print { display: none !important; }
             #app-screen { display: none !important; }
@@ -227,7 +227,6 @@
         // ==========================================
         // 1. KONFIGURASI SUPABASE 
         // ==========================================
-        // PENTING: UBAH DUA BARIS DI BAWAH INI DENGAN DATA SUPABASE ANDA SEBELUM UPLOAD KE GITHUB!
         const SUPABASE_URL = 'https://ruvqyojeftgllbisknff.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_Y8-l3DWcKU2BEdpJ99u_fw_WDS60ylw';
         
@@ -539,7 +538,6 @@
                 }
                 currentUser = storedUser;
                 
-                // PERBAIKAN FINAL: Memastikan pemeriksaan password sangat ketat
                 if (String(currentUser.password).trim() === '123456') {
                     document.getElementById('login-screen').classList.remove('hidden');
                     document.getElementById('app-screen').classList.add('hidden');
@@ -555,7 +553,7 @@
         async function handleLogin(e) {
             e.preventDefault();
             const u = document.getElementById('username').value.trim();
-            const p = document.getElementById('password').value; // Mengambil password yang diketik pengguna
+            const p = document.getElementById('password').value;
             const loader = document.getElementById('login-loader');
             const errorEl = document.getElementById('login-error');
             
@@ -582,7 +580,6 @@
                     currentUser = user; 
                     if(currentUser.role === 'admin') currentUser.role = 'super_admin';
                     
-                    // PERBAIKAN FINAL: Pengecekan ketat untuk memicu Popup Ganti Password
                     const isDefaultPassword = (String(currentUser.password).trim() === '123456' || p === '123456');
                     
                     if (isDefaultPassword) {
@@ -598,14 +595,11 @@
             }, 800);
         }
 
-        // FUNGSI BARU: Cegat pengguna dan paksa buat sandi baru
         function forceChangePassword() {
-            // Pastikan UI berfokus pada pop-up dan layar utama terkunci
             document.getElementById('app-screen').classList.add('hidden');
             document.getElementById('login-screen').classList.remove('hidden');
-            document.getElementById('login-form').classList.add('opacity-0', 'pointer-events-none'); // Samarkan form login
+            document.getElementById('login-form').classList.add('opacity-0', 'pointer-events-none');
             
-            // Beri jeda 300ms agar browser selesai me-render UI sebelum menampilkan Pop-up
             setTimeout(async () => {
                 const { value: formValues } = await Swal.fire({
                     title: 'Wajib Ganti Password!',
@@ -664,9 +658,9 @@
                     }
                 } else {
                     document.getElementById('login-form').classList.remove('opacity-0', 'pointer-events-none');
-                    handleLogout(); // Kembali ke awal jika pop-up dicoba ditutup paksa
+                    handleLogout(); 
                 }
-            }, 300); // Akhir dari SetTimeout
+            }, 300);
         }
 
         function handleLogout(isAuto = false) {
@@ -845,9 +839,6 @@
             }, 500);
         }
 
-        // ==========================================
-        // FITUR BARU: RENDER SYSTEM SETTINGS (ADMIN)
-        // ==========================================
         function renderSystemSettings() {
             const content = document.getElementById('dynamic-content');
             content.innerHTML = `
@@ -1470,7 +1461,7 @@
                 }
 
                 if (currentUser.role === 'user' && !['users', 'logs', 'system_settings', 'announcements'].includes(tableName)) {
-                    // [PERBAIKAN] Auto-recovery Lapis 1: Jika ID Sekolah kosong, coba tautkan berdasarkan Nama Sekolah
+                    // Auto-recovery Lapis 1: Jika ID Sekolah kosong, coba tautkan berdasarkan Nama Sekolah
                     if (!currentUser.sekolah_id && tableName === 'schools') {
                         try {
                             const { data: recSchool } = await supabaseClient.from('schools').select('id').eq('nama', currentUser.nama_sekolah).limit(1);
@@ -1566,7 +1557,7 @@
             const schema = schemas[schemaId];
             const content = document.getElementById('dynamic-content');
             
-            // [PERBAIKAN] Wajib isi Identitas terlebih dahulu agar data sarpras tidak tersimpan melayang (tanpa ID)
+            // Wajib isi Identitas terlebih dahulu agar data sarpras tidak tersimpan melayang (tanpa ID)
             if (currentUser.role === 'user' && !['schools', 'pesan', 'announcements'].includes(schemaId)) {
                 if (!currentUser.sekolah_id) {
                     content.innerHTML = `
@@ -2038,7 +2029,6 @@
                     }
                     
                     if (isDuplicate) {
-                        // [PERBAIKAN] Auto-recovery Lapis 2: Jika mencoba menginput NPSN yang sama karena belum tertaut
                         if (!editingId && schema.table === 'schools' && currentUser.role === 'user' && f.name === 'npsn' && existingId) {
                             currentUser.sekolah_id = existingId;
                             localStorage.setItem('sipas_user', JSON.stringify(currentUser));
@@ -2122,18 +2112,15 @@
                 }
 
                 if (currentUser.role === 'user' && !['schools', 'pesan', 'announcements'].includes(schema.table)) {
-                    // [PERBAIKAN] Hanya menggunakan ID Sekolah asli untuk mencegah data tersimpan di ID default (1)
                     payload.sekolah_id = currentUser.sekolah_id;
                 }
                 
-                // PERBAIKAN BUG ID KOSONG:
                 if (currentUser.role === 'user' && schema.table === 'schools' && !editingId) {
                     if (currentUser.sekolah_id) {
                         payload.id = currentUser.sekolah_id;
                     }
                 }
                 
-                // Pencegahan mutlak agar tidak pernah mengirimkan payload.id yang bernilai kosong (null/undefined)
                 if (payload.id === null || payload.id === undefined || payload.id === "") {
                     delete payload.id;
                 }
@@ -2171,7 +2158,6 @@
                         if(!mockDB[schema.table]) mockDB[schema.table] = []; 
                         mockDB[schema.table].push(payload); 
 
-                        // [PERBAIKAN AUTO-LINK DI MOCK MODE]
                         if (schema.table === 'schools' && currentUser.role === 'user') {
                             currentUser.sekolah_id = payload.id;
                             localStorage.setItem('sipas_user', JSON.stringify(currentUser));
@@ -2194,7 +2180,6 @@
                     
                     if (result.error) throw result.error;
 
-                    // [PERBAIKAN Lapis 3] Mengunci ID sekolah secara sempurna saat pertama kali insert
                     if (!editingId && schema.table === 'schools' && currentUser.role === 'user') {
                         try {
                             let newSchoolId = null;
@@ -2299,6 +2284,52 @@
                             logActivity(`Memperbarui status ID ${id} di ${schema.title} menjadi ${newStatus}`);
                             Swal.fire('Berhasil!', `Status telah diubah menjadi ${newStatus}.`, 'success');
                             loadPage(currentMenu);
+                        }
+                    }
+                }
+            });
+        }
+
+        function deleteData(id) {
+            if (currentMenu === 'users' && String(id) === String(currentUser.id)) {
+                Swal.fire('Akses Ditolak', 'Anda tidak dapat menghapus akun Anda sendiri saat sedang login.', 'error');
+                return;
+            }
+
+            Swal.fire({
+                title: 'Apakah Anda yakin?',
+                text: "Data yang dihapus tidak dapat dikembalikan!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3b82f6',
+                confirmButtonText: 'Ya, Hapus Data!',
+                cancelButtonText: 'Batal'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    const schema = schemas[currentMenu]; 
+                    if (useMockData) { 
+                        mockDB[schema.table] = mockDB[schema.table].filter(x => String(x.id) !== String(id)); 
+                        logActivity(`Menghapus data di tabel ${schema.title}`);
+                        loadPage(currentMenu); 
+                        Swal.fire('Terhapus!', 'Data berhasil dihapus dari sistem.', 'success');
+                    } else { 
+                        Swal.fire({ title: 'Menghapus...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                        try {
+                            const targetId = isNaN(id) ? id : parseInt(id);
+                            const { data, error } = await supabaseClient.from(schema.table).delete().eq('id', targetId).select(); 
+                            
+                            if (error) throw error;
+                            
+                            if (data && data.length === 0) {
+                                throw new Error("Data gagal dihapus. Pastikan fitur RLS (Row Level Security) pada tabel ini telah dimatikan di Supabase.");
+                            }
+
+                            logActivity(`Menghapus data di tabel ${schema.title}`);
+                            loadPage(currentMenu); 
+                            Swal.fire('Terhapus!', 'Data berhasil dihapus dari database utama.', 'success');
+                        } catch (err) {
+                            Swal.fire('Gagal!', err.message, 'error');
                         }
                     }
                 }
