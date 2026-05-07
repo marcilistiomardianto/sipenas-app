@@ -573,13 +573,77 @@
                 if (user) { 
                     currentUser = user; 
                     if(currentUser.role === 'admin') currentUser.role = 'super_admin';
-                    localStorage.setItem('sipas_user', JSON.stringify(currentUser)); 
-                    initApp(); 
-                    logActivity('Login ke sistem');
+                    
+                    // PERBAIKAN: Paksa ganti password jika masih menggunakan sandi bawaan (123456)
+                    if (currentUser.password === '123456') {
+                        forceChangePassword();
+                    } else {
+                        localStorage.setItem('sipas_user', JSON.stringify(currentUser)); 
+                        initApp(); 
+                        logActivity('Login ke sistem');
+                    }
                 } else {
                     errorEl.classList.remove('hidden');
                 }
             }, 800);
+        }
+
+        // FUNGSI BARU: Cegat pengguna dan paksa buat sandi baru
+        async function forceChangePassword() {
+            const { value: formValues } = await Swal.fire({
+                title: 'Wajib Ganti Password!',
+                text: 'Demi keamanan, Anda wajib mengganti password bawaan (123456) sebelum dapat masuk ke sistem.',
+                icon: 'warning',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                showCancelButton: false,
+                confirmButtonColor: '#1e3a8a',
+                confirmButtonText: 'Simpan Password Baru',
+                html: `
+                    <div class="mb-4 text-left mt-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Password Baru</label>
+                        <input id="swal-force-new-pass" type="password" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-dinas-500 focus:outline-none" placeholder="Minimal 6 karakter">
+                    </div>
+                    <div class="text-left">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Konfirmasi Password Baru</label>
+                        <input id="swal-force-conf-pass" type="password" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-dinas-500 focus:outline-none" placeholder="Ulangi password baru">
+                    </div>
+                `,
+                preConfirm: () => {
+                    const newPass = document.getElementById('swal-force-new-pass').value;
+                    const confPass = document.getElementById('swal-force-conf-pass').value;
+                    
+                    if (!newPass || !confPass) { Swal.showValidationMessage('Semua kolom wajib diisi!'); return false; }
+                    if (newPass.length < 6) { Swal.showValidationMessage('Password minimal 6 karakter!'); return false; }
+                    if (newPass === '123456') { Swal.showValidationMessage('Password baru tidak boleh 123456 lagi!'); return false; }
+                    if (newPass !== confPass) { Swal.showValidationMessage('Konfirmasi password tidak cocok dengan password baru!'); return false; }
+                    return { newPass: newPass };
+                }
+            });
+
+            if (formValues) {
+                if (useMockData) {
+                    const idx = mockDB.users.findIndex(x => String(x.id) === String(currentUser.id));
+                    if(idx > -1) mockDB.users[idx].password = formValues.newPass;
+                    currentUser.password = formValues.newPass;
+                    localStorage.setItem('sipas_user', JSON.stringify(currentUser));
+                    initApp();
+                    logActivity('Merubah password bawaan dan login ke sistem');
+                    Swal.fire('Berhasil!', 'Password berhasil diperbarui. Selamat datang di SIPENAS!', 'success');
+                } else {
+                    Swal.fire({ title: 'Menyimpan...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                    const { error } = await supabaseClient.from('users').update({ password: formValues.newPass }).eq('id', currentUser.id);
+                    if (error) {
+                        Swal.fire('Error!', error.message, 'error').then(() => forceChangePassword()); // Ulangi jika gagal jaringan
+                    } else {
+                        currentUser.password = formValues.newPass;
+                        localStorage.setItem('sipas_user', JSON.stringify(currentUser));
+                        initApp();
+                        logActivity('Merubah password bawaan dan login ke sistem');
+                        Swal.fire('Berhasil!', 'Password berhasil diperbarui. Selamat datang di SIPENAS!', 'success');
+                    }
+                }
+            }
         }
 
         function handleLogout(isAuto = false) {
