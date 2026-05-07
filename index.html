@@ -74,8 +74,9 @@
     <!-- AREA CETAK PROFIL SEKOLAH & REKAP KABUPATEN -->
     <div id="cetak-area" class="hidden bg-white min-h-screen">
         <div class="border-b-4 border-double border-black pb-4 mb-6 flex items-center justify-center text-center">
-            <div class="w-24 flex-shrink-0 text-center">
-                <i class="fa-solid fa-shield-halved text-6xl text-gray-800"></i>
+            <div class="w-24 flex-shrink-0 text-center" id="kop-logo-container">
+                <img id="kop-logo-img" src="" alt="Logo Dinas" class="hidden w-20 h-20 mx-auto object-contain">
+                <i id="kop-logo-icon" class="fa-solid fa-shield-halved text-6xl text-gray-800"></i>
             </div>
             <div class="flex-1 px-4">
                 <h2 id="kop-pemda" class="text-xl font-bold uppercase tracking-wide">Pemerintah Kabupaten Manggarai Barat</h2>
@@ -274,7 +275,8 @@
             nip_kadis: 'NIP. 19690813 199003 1 006',
             wa_helpdesk: '0812-3456-7890',
             email_helpdesk: 'admin.sipenas@manggaraibaratkab.go.id',
-            file_panduan: ''
+            file_panduan: '',
+            logo_dinas: ''
         };
 
         let dashData = {};
@@ -282,7 +284,7 @@
 
         const mockDB = {
             system_settings: { id: 1, periode: '2026/2027 Ganjil', is_locked: false },
-            profil_dinas: { id: 1, nama_pemda: 'Pemerintah Kabupaten Manggarai Barat', nama_dinas: 'Dinas Pendidikan Kepemudaan dan Olahraga', alamat: 'Jln. Sernaru No.3, Labuan Bajo', kontak: 'Email: pko@manggaraibaratkab.go.id | Website: https://pko.manggaraibaratkab.go.id', nama_kadis: 'Agustinus Gias, S.Pd', pangkat_kadis: 'Pembina Utama Muda, IV/c', nip_kadis: 'NIP. 19690813 199003 1 006', wa_helpdesk: '0812-3456-7890', email_helpdesk: 'admin.sipenas@manggaraibaratkab.go.id', file_panduan: '' },
+            profil_dinas: { id: 1, nama_pemda: 'Pemerintah Kabupaten Manggarai Barat', nama_dinas: 'Dinas Pendidikan Kepemudaan dan Olahraga', alamat: 'Jln. Sernaru No.3, Labuan Bajo', kontak: 'Email: pko@manggaraibaratkab.go.id | Website: https://pko.manggaraibaratkab.go.id', nama_kadis: 'Agustinus Gias, S.Pd', pangkat_kadis: 'Pembina Utama Muda, IV/c', nip_kadis: 'NIP. 19690813 199003 1 006', wa_helpdesk: '0812-3456-7890', email_helpdesk: 'admin.sipenas@manggaraibaratkab.go.id', file_panduan: '', logo_dinas: '' },
             users: [
                 { id: 1, username: 'superadmin', password: '123456', role: 'super_admin', nama_sekolah: 'Disdikpora (Super Admin)' },
                 { id: 3, username: 'adminsd', password: '123456', role: 'admin_sd', nama_sekolah: 'Dinas - Jenjang SD' },
@@ -756,6 +758,17 @@
             document.getElementById('ttd-nama').textContent = appProfilDinas.nama_kadis;
             document.getElementById('ttd-pangkat').textContent = appProfilDinas.pangkat_kadis;
             document.getElementById('ttd-nip').textContent = appProfilDinas.nip_kadis;
+
+            const logoImg = document.getElementById('kop-logo-img');
+            const logoIcon = document.getElementById('kop-logo-icon');
+            if (appProfilDinas.logo_dinas && appProfilDinas.logo_dinas !== '') {
+                logoImg.src = appProfilDinas.logo_dinas;
+                logoImg.classList.remove('hidden');
+                logoIcon.classList.add('hidden');
+            } else {
+                logoImg.classList.add('hidden');
+                logoIcon.classList.remove('hidden');
+            }
         }
 
         function updateHeaderStatus() {
@@ -925,6 +938,11 @@
                                 <label class="block text-xs font-bold text-gray-600 mb-1">Kontak (Email / Website)</label>
                                 <input type="text" id="pd-kontak" value="${appProfilDinas.kontak || ''}" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-dinas-500 outline-none" required>
                             </div>
+                            <div class="mb-3 border-t pt-3 mt-3">
+                                <label class="block text-xs font-bold text-gray-600 mb-2"><i class="fa-solid fa-image text-blue-500 mr-1"></i> Upload Logo Dinas (PNG/JPG)</label>
+                                <input type="file" id="pd-logo" accept=".png, .jpg, .jpeg" class="w-full p-2 border border-gray-300 rounded bg-white text-sm focus:outline-none">
+                                ${appProfilDinas.logo_dinas ? `<p class="text-xs text-green-600 mt-2 font-semibold"><i class="fa-solid fa-check-circle"></i> Logo Kustom Aktif.</p>` : `<p class="text-xs text-gray-500 mt-2">Gunakan background transparan (PNG) untuk hasil cetak terbaik.</p>`}
+                            </div>
                         </div>
                         <div class="p-4 border border-gray-200 rounded-lg bg-gray-50">
                             <h3 class="font-bold text-gray-700 mb-4 border-b pb-2">Penandatangan (Kepala Dinas)</h3>
@@ -989,14 +1007,16 @@
                 email_helpdesk: document.getElementById('pd-email').value
             };
 
-            const fileInput = document.getElementById('pd-panduan');
+            const filePanduanInput = document.getElementById('pd-panduan');
+            const fileLogoInput = document.getElementById('pd-logo');
             
             try {
                 btnSave.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Memproses...`;
                 btnSave.disabled = true;
 
-                if (fileInput.files && fileInput.files.length > 0) {
-                    const file = fileInput.files[0];
+                // Proses Buku Panduan
+                if (filePanduanInput.files && filePanduanInput.files.length > 0) {
+                    const file = filePanduanInput.files[0];
                     if (file.type !== 'application/pdf') {
                         Swal.fire('Format Salah', 'Buku Panduan harus berformat PDF.', 'error');
                         return;
@@ -1020,6 +1040,34 @@
                     }
                 } else {
                     payload.file_panduan = appProfilDinas.file_panduan || '';
+                }
+
+                // Proses Logo Dinas
+                if (fileLogoInput.files && fileLogoInput.files.length > 0) {
+                    const fileLogo = fileLogoInput.files[0];
+                    if (!fileLogo.type.startsWith('image/')) {
+                        Swal.fire('Format Salah', 'Logo harus berupa gambar (JPG/PNG).', 'error');
+                        return;
+                    }
+                    if (fileLogo.size > 2 * 1024 * 1024) { 
+                        Swal.fire('Terlalu Besar', 'Ukuran Logo maksimal 2MB.', 'error');
+                        return;
+                    }
+
+                    if (useMockData) {
+                        payload.logo_dinas = 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a6/Logo_of_the_Ministry_of_Education_and_Culture_of_the_Republic_of_Indonesia.svg/800px-Logo_of_the_Ministry_of_Education_and_Culture_of_the_Republic_of_Indonesia.svg.png';
+                    } else {
+                        btnSave.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Mengunggah Logo...`;
+                        const fileNameLogo = `logo_${Date.now()}.${fileLogo.name.split('.').pop()}`;
+                        const filePathLogo = `system/${fileNameLogo}`;
+                        
+                        const { data: uploadLogoData, error: uploadLogoError } = await supabaseClient.storage.from('sipas_files').upload(filePathLogo, fileLogo);
+                        if (uploadLogoError) throw uploadLogoError;
+                        const { data: publicUrlLogo } = supabaseClient.storage.from('sipas_files').getPublicUrl(filePathLogo);
+                        payload.logo_dinas = publicUrlLogo.publicUrl;
+                    }
+                } else {
+                    payload.logo_dinas = appProfilDinas.logo_dinas || '';
                 }
 
                 if (useMockData) {
