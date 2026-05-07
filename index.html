@@ -538,7 +538,14 @@
                     localStorage.setItem('sipas_user', JSON.stringify(storedUser)); 
                 }
                 currentUser = storedUser;
-                initApp();
+                
+                // PERBAIKAN: Cegat pengguna yang sudah terlanjur login jika password-nya masih 123456
+                if (String(currentUser.password) === '123456') {
+                    document.getElementById('login-screen').classList.remove('hidden');
+                    forceChangePassword();
+                } else {
+                    initApp();
+                }
             } else {
                 document.getElementById('login-screen').classList.remove('hidden');
             }
@@ -575,7 +582,7 @@
                     if(currentUser.role === 'admin') currentUser.role = 'super_admin';
                     
                     // PERBAIKAN: Paksa ganti password jika masih menggunakan sandi bawaan (123456)
-                    if (currentUser.password === '123456') {
+                    if (String(currentUser.password) === '123456') {
                         forceChangePassword();
                     } else {
                         localStorage.setItem('sipas_user', JSON.stringify(currentUser)); 
@@ -643,6 +650,8 @@
                         Swal.fire('Berhasil!', 'Password berhasil diperbarui. Selamat datang di SIPENAS!', 'success');
                     }
                 }
+            } else {
+                handleLogout(); // Kembali ke awal jika pop-up dicoba ditutup paksa
             }
         }
 
