@@ -3,6 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- Meta Anti-Cache: Memaksa browser selalu memuat kode terbaru -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
     <title>SIPENAS - Sistem Pendataan Sarana Prasarana Sekolah</title>
     
     <!-- Tailwind CSS untuk UI Modern -->
@@ -56,11 +62,9 @@
         @media print {
             body * { visibility: hidden; }
             #cetak-area, #cetak-area * { visibility: visible; }
-            /* Memaksa display menjadi block agar tidak tersembunyi lagi di kertas cetak */
             #cetak-area { position: absolute; left: 0; top: 0; width: 100%; padding: 20px; background: white; z-index: 9999; display: block !important; }
             .no-print { display: none !important; }
             #app-screen { display: none !important; }
-            /* Tambahan agar warna background tabel abu-abu ikut tercetak rapi */
             * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         }
     </style>
@@ -530,22 +534,36 @@
         // 3. LOGIKA AUTHENTICATION (SIMPLE DB CHECK)
         // ==========================================
         function initAuth() {
-            let storedUser = JSON.parse(localStorage.getItem('sipas_user'));
-            if (storedUser) {
-                if (storedUser.role === 'admin') { 
-                    storedUser.role = 'super_admin'; 
-                    localStorage.setItem('sipas_user', JSON.stringify(storedUser)); 
-                }
-                currentUser = storedUser;
+            try {
+                let storedUser = JSON.parse(localStorage.getItem('sipas_user'));
                 
-                if (String(currentUser.password).trim() === '123456') {
-                    document.getElementById('login-screen').classList.remove('hidden');
-                    document.getElementById('app-screen').classList.add('hidden');
-                    forceChangePassword();
-                } else {
-                    initApp();
+                // PEMBERSIH CACHE: Mencegah aplikasi macet karena menyimpan objek lama/rusak (seperti Supabase Auth lama)
+                if (storedUser && (!storedUser.username || !storedUser.role)) {
+                    localStorage.removeItem('sipas_user');
+                    storedUser = null;
                 }
-            } else {
+
+                if (storedUser) {
+                    if (storedUser.role === 'admin') { 
+                        storedUser.role = 'super_admin'; 
+                        localStorage.setItem('sipas_user', JSON.stringify(storedUser)); 
+                    }
+                    currentUser = storedUser;
+                    
+                    // PENGUNCI KEAMANAN Lapis 1: Cegat pengguna ter-cache yang sandinya belum diubah
+                    if (String(currentUser.password).trim() === '123456') {
+                        document.getElementById('login-screen').classList.remove('hidden');
+                        document.getElementById('app-screen').classList.add('hidden');
+                        forceChangePassword();
+                    } else {
+                        initApp();
+                    }
+                } else {
+                    document.getElementById('login-screen').classList.remove('hidden');
+                }
+            } catch (e) {
+                // Jika localStorage rusak, bersihkan dan minta login ulang
+                localStorage.removeItem('sipas_user');
                 document.getElementById('login-screen').classList.remove('hidden');
             }
         }
@@ -580,6 +598,7 @@
                     currentUser = user; 
                     if(currentUser.role === 'admin') currentUser.role = 'super_admin';
                     
+                    // PENGUNCI KEAMANAN Lapis 2: Cek sandi yang baru diketik atau sandi dari database
                     const isDefaultPassword = (String(currentUser.password).trim() === '123456' || p === '123456');
                     
                     if (isDefaultPassword) {
@@ -596,10 +615,12 @@
         }
 
         function forceChangePassword() {
+            // Pastikan UI berfokus pada pop-up dan layar utama dikunci rapat
             document.getElementById('app-screen').classList.add('hidden');
             document.getElementById('login-screen').classList.remove('hidden');
             document.getElementById('login-form').classList.add('opacity-0', 'pointer-events-none');
             
+            // Jeda 300ms agar browser selesai memproses UI sebelum menampilkan SweetAlert
             setTimeout(async () => {
                 const { value: formValues } = await Swal.fire({
                     title: 'Wajib Ganti Password!',
@@ -777,7 +798,8 @@
             const displayNama = currentUser.nama_sekolah || currentUser.username;
             document.getElementById('sidebar-user-name').textContent = displayNama;
             document.getElementById('sidebar-user-role').textContent = `Role: ${currentUser.role.replace('_', ' ').toUpperCase()}`;
-            document.getElementById('user-initial').textContent = displayNama.charAt(0).toUpperCase();
+            // Amankan render karakter jika data kosong
+            document.getElementById('user-initial').textContent = (displayNama && displayNama.length > 0) ? displayNama.charAt(0).toUpperCase() : 'U';
             
             await loadSystemSettings(); 
             initIdleTimeout();
