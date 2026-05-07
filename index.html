@@ -91,9 +91,7 @@
         <div class="mt-16 text-right w-full flex justify-end">
             <div class="text-center w-64">
                 <p>Labuan Bajo, <span id="cetak-tanggal"></span></p>
-                <p>Mengetahui,</p>
-                <p>Kepala Dinas Pendidikan Kepemudaan dan Olahraga,</p>
-                <p class="mb-16">Kabupaten Manggarai Barat,</p>
+                <p class="mb-16">Mengetahui,</p>
                 <p id="ttd-nama" class="font-bold underline">Agustinus Gias, S.Pd</p>
                 <p id="ttd-pangkat">Pembina Utama Muda, IV/c</p>
                 <p id="ttd-nip">NIP. 19690813 199003 1 006</p>
@@ -121,7 +119,7 @@
                     <label class="block text-sm font-medium text-gray-700 mb-1" id="login-label">Username</label>
                     <div class="relative">
                         <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400"><i class="fa-solid fa-user"></i></span>
-                        <input type="text" id="username" class="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-dinas-500" required placeholder="NPSN Sekolah">
+                        <input type="text" id="username" class="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-dinas-500" required placeholder="superadmin / adminsd / sekolah1">
                     </div>
                 </div>
                 <div class="mb-6">
@@ -131,7 +129,7 @@
                         <input type="password" id="password" class="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-dinas-500" required placeholder="••••••••">
                     </div>
                 </div>
-                <div id="login-error" class="hidden mb-4 text-sm text-red-600 bg-red-100 p-2 rounded">Username atau password salah!</div>
+                <div id="login-error" class="hidden mb-4 text-sm text-red-600 bg-red-100 p-3 rounded-lg border border-red-200">Username atau password salah!</div>
                 <button type="submit" class="w-full bg-dinas-800 hover:bg-dinas-900 text-white font-bold py-2 px-4 rounded-lg transition duration-200 flex justify-center items-center">
                     <span id="login-text">Masuk Sistem</span>
                     <div id="login-loader" class="loader hidden w-5 h-5 border-2 border-t-white ml-2"></div>
@@ -231,6 +229,15 @@
 
     <!-- PENGATURAN SUPABASE & LOGIC APLIKASI -->
     <script>
+        // ==========================================
+        // FITUR KEAMANAN GLOBAL (Anti-XSS)
+        // ==========================================
+        // Fungsi ini membersihkan input pengguna dari kode skrip berbahaya sebelum disimpan
+        function sanitizeInput(str) {
+            if (typeof str !== 'string') return str;
+            return str.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
         // ==========================================
         // 1. KONFIGURASI SUPABASE 
         // ==========================================
@@ -570,7 +577,9 @@
                     }
                     currentUser = storedUser;
                     
-                    if (String(currentUser.password).trim() === '123456') {
+                    // PENGUNCI KEAMANAN Lapis 1: Cegat pengguna ter-cache yang sandinya belum diubah
+                    // (Karena sandi sudah dihilangkan dari localStorage, kita cek apakah ada sisa jejak cache)
+                    if (currentUser.password && String(currentUser.password).trim() === '123456') {
                         document.getElementById('login-screen').classList.remove('hidden');
                         document.getElementById('app-screen').classList.add('hidden');
                         forceChangePassword();
@@ -588,8 +597,17 @@
 
         async function handleLogin(e) {
             e.preventDefault();
-            const u = document.getElementById('username').value.trim();
-            const p = document.getElementById('password').value;
+            
+            // 2. KEAMANAN ANTI-BRUTE FORCE (Blokir 30 detik jika 3x gagal login)
+            const lockoutUntil = localStorage.getItem('sipas_lockout');
+            if (lockoutUntil && Date.now() < parseInt(lockoutUntil)) {
+                const remaining = Math.ceil((parseInt(lockoutUntil) - Date.now()) / 1000);
+                Swal.fire('Akses Diblokir', `Terlalu banyak percobaan gagal. Silakan coba lagi dalam ${remaining} detik.`, 'error');
+                return;
+            }
+
+            const u = sanitizeInput(document.getElementById('username').value.trim());
+            const p = document.getElementById('password').value; 
             const loader = document.getElementById('login-loader');
             const errorEl = document.getElementById('login-error');
             
@@ -613,20 +631,38 @@
                 loader.classList.add('hidden');
                 
                 if (user) { 
+                    localStorage.removeItem('sipas_attempts'); // Hapus blokir Anti-Brute Force
+
                     currentUser = user; 
                     if(currentUser.role === 'admin') currentUser.role = 'super_admin';
                     
+                    // PENGUNCI KEAMANAN Lapis 2: Pengecekan ketat untuk memicu Popup Ganti Password
                     const isDefaultPassword = (String(currentUser.password).trim() === '123456' || p === '123456');
                     
                     if (isDefaultPassword) {
                         forceChangePassword();
                     } else {
-                        localStorage.setItem('sipas_user', JSON.stringify(currentUser)); 
+                        // 1. KEAMANAN SESI BROWSER: Menghapus password dari memori sebelum disimpan
+                        const safeUser = { ...currentUser };
+                        delete safeUser.password;
+                        localStorage.setItem('sipas_user', JSON.stringify(safeUser)); 
+                        
                         initApp(); 
                         logActivity('Login ke sistem');
                     }
                 } else {
-                    errorEl.classList.remove('hidden');
+                    // Catat Kegagalan Login (Anti-Brute Force)
+                    let attempts = parseInt(localStorage.getItem('sipas_attempts') || '0') + 1;
+                    if (attempts >= 3) {
+                        localStorage.setItem('sipas_lockout', Date.now() + 30000); // 30 detik
+                        localStorage.setItem('sipas_attempts', '0');
+                        errorEl.innerHTML = '<i class="fa-solid fa-lock mr-1"></i> Akses diblokir 30 detik!';
+                        errorEl.classList.remove('hidden');
+                    } else {
+                        localStorage.setItem('sipas_attempts', attempts);
+                        errorEl.innerHTML = `Username atau password salah! <br><span class="text-xs font-bold text-red-500">(Sisa percobaan: ${3 - attempts})</span>`;
+                        errorEl.classList.remove('hidden');
+                    }
                 }
             }, 800);
         }
@@ -672,8 +708,12 @@
                     if (useMockData) {
                         const idx = mockDB.users.findIndex(x => String(x.id) === String(currentUser.id));
                         if(idx > -1) mockDB.users[idx].password = formValues.newPass;
-                        currentUser.password = formValues.newPass;
-                        localStorage.setItem('sipas_user', JSON.stringify(currentUser));
+                        
+                        // Hapus password sebelum simpan memori
+                        const safeUser = { ...currentUser };
+                        delete safeUser.password;
+                        localStorage.setItem('sipas_user', JSON.stringify(safeUser));
+                        
                         document.getElementById('login-form').classList.remove('opacity-0', 'pointer-events-none');
                         initApp();
                         logActivity('Merubah password bawaan dan login ke sistem');
@@ -684,8 +724,10 @@
                         if (error) {
                             Swal.fire('Error!', error.message, 'error').then(() => forceChangePassword()); 
                         } else {
-                            currentUser.password = formValues.newPass;
-                            localStorage.setItem('sipas_user', JSON.stringify(currentUser));
+                            const safeUser = { ...currentUser };
+                            delete safeUser.password;
+                            localStorage.setItem('sipas_user', JSON.stringify(safeUser));
+                            
                             document.getElementById('login-form').classList.remove('opacity-0', 'pointer-events-none');
                             initApp();
                             logActivity('Merubah password bawaan dan login ke sistem');
@@ -809,14 +851,12 @@
             } catch(e) {}
         }
 
-        // FITUR IDLE TIMEOUT LOGOUT
         function initIdleTimeout() {
             setInterval(() => {
                 idleTime++;
                 if (idleTime >= IDLE_LIMIT) handleLogout(true); 
-            }, 60000); // Mengecek setiap 1 Menit
+            }, 60000); 
 
-            // Jika user bergerak, mengetik, scroll dll, Reset Waktu Timeout ke 0 kembali
             const resetIdle = () => idleTime = 0;
             window.addEventListener('mousemove', resetIdle);
             window.addEventListener('keypress', resetIdle);
@@ -850,7 +890,7 @@
             document.getElementById('user-initial').textContent = (displayNama && displayNama.length > 0) ? displayNama.charAt(0).toUpperCase() : 'U';
             
             await loadSystemSettings(); 
-            initIdleTimeout(); // Memulai perhitungan Timeout
+            initIdleTimeout(); 
             renderSidebar();
             updateMessageNotification();
             loadPage('dashboard');
@@ -960,7 +1000,6 @@
                             </div>
                         </div>
                         
-                        <!-- PUSAT BANTUAN DI KENDALIKAN DARI SINI -->
                         <div class="p-4 border border-gray-200 rounded-lg bg-gray-50 md:col-span-2 shadow-inner">
                             <h3 class="font-bold text-gray-700 mb-4 border-b pb-2"><i class="fa-solid fa-headset text-blue-500 mr-2"></i> Pusat Bantuan & Buku Panduan</h3>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -996,15 +1035,15 @@
             const originalBtnText = btnSave.innerHTML;
             
             const payload = {
-                nama_pemda: document.getElementById('pd-pemda').value,
-                nama_dinas: document.getElementById('pd-dinas').value,
-                alamat: document.getElementById('pd-alamat').value,
-                kontak: document.getElementById('pd-kontak').value,
-                nama_kadis: document.getElementById('pd-nama').value,
-                pangkat_kadis: document.getElementById('pd-pangkat').value,
-                nip_kadis: document.getElementById('pd-nip').value,
-                wa_helpdesk: document.getElementById('pd-wa').value,
-                email_helpdesk: document.getElementById('pd-email').value
+                nama_pemda: sanitizeInput(document.getElementById('pd-pemda').value),
+                nama_dinas: sanitizeInput(document.getElementById('pd-dinas').value),
+                alamat: sanitizeInput(document.getElementById('pd-alamat').value),
+                kontak: sanitizeInput(document.getElementById('pd-kontak').value),
+                nama_kadis: sanitizeInput(document.getElementById('pd-nama').value),
+                pangkat_kadis: sanitizeInput(document.getElementById('pd-pangkat').value),
+                nip_kadis: sanitizeInput(document.getElementById('pd-nip').value),
+                wa_helpdesk: sanitizeInput(document.getElementById('pd-wa').value),
+                email_helpdesk: sanitizeInput(document.getElementById('pd-email').value)
             };
 
             const filePanduanInput = document.getElementById('pd-panduan');
@@ -1148,7 +1187,7 @@
 
         async function saveSystemSettings(e) {
             e.preventDefault();
-            const newPeriode = document.getElementById('setting-periode').value;
+            const newPeriode = sanitizeInput(document.getElementById('setting-periode').value);
             const newLock = document.getElementById('setting-lock').value === 'true';
 
             const payload = { periode: newPeriode, is_locked: newLock };
@@ -1276,14 +1315,28 @@
                 confirmButtonColor: '#1e3a8a',
                 confirmButtonText: 'Simpan Perubahan',
                 cancelButtonText: 'Batal',
-                preConfirm: () => {
+                preConfirm: async () => {
                     const oldPass = document.getElementById('swal-old-pass').value;
                     const newPass = document.getElementById('swal-new-pass').value;
                     const confPass = document.getElementById('swal-conf-pass').value;
                     
                     if (!oldPass || !newPass || !confPass) { Swal.showValidationMessage('Semua kolom wajib diisi!'); return false; }
-                    if (oldPass !== currentUser.password) { Swal.showValidationMessage('Password lama salah!'); return false; }
-                    if (newPass !== confPass) { Swal.showValidationMessage('Konfirmasi password tidak cocok dengan password baru!'); return false; }
+                    
+                    // Verifikasi password lama ke Database
+                    if (useMockData) {
+                        const u = mockDB.users.find(x => String(x.id) === String(currentUser.id));
+                        if (u && u.password !== oldPass) { Swal.showValidationMessage('Password lama salah!'); return false; }
+                    } else {
+                        const { data } = await supabaseClient.from('users').select('password').eq('id', currentUser.id).single();
+                        if (!data || data.password !== oldPass) {
+                            Swal.showValidationMessage('Password lama salah!'); return false;
+                        }
+                    }
+
+                    if (newPass.length < 6) { Swal.showValidationMessage('Password minimal 6 karakter!'); return false; }
+                    if (newPass === '123456') { Swal.showValidationMessage('Password baru tidak boleh 123456!'); return false; }
+                    if (newPass !== confPass) { Swal.showValidationMessage('Konfirmasi password tidak cocok!'); return false; }
+                    
                     return { newPass: newPass };
                 }
             });
@@ -1292,8 +1345,7 @@
                 if (useMockData) {
                     const idx = mockDB.users.findIndex(x => String(x.id) === String(currentUser.id));
                     if(idx > -1) mockDB.users[idx].password = formValues.newPass;
-                    currentUser.password = formValues.newPass;
-                    localStorage.setItem('sipas_user', JSON.stringify(currentUser));
+                    
                     logActivity('Merubah password akun');
                     Swal.fire('Berhasil!', 'Password Anda berhasil diperbarui.', 'success');
                 } else {
@@ -1301,8 +1353,6 @@
                     if (error) {
                         Swal.fire('Error!', error.message, 'error');
                     } else {
-                        currentUser.password = formValues.newPass;
-                        localStorage.setItem('sipas_user', JSON.stringify(currentUser));
                         logActivity('Merubah password akun');
                         Swal.fire('Berhasil!', 'Password Anda berhasil diperbarui.', 'success');
                     }
@@ -2264,7 +2314,8 @@
                     if (f.type === 'number' && inputEl.value === '') {
                         payload[f.name] = null;
                     } else {
-                        payload[f.name] = inputEl.value;
+                        // 3. KEAMANAN ANTI-XSS: Membersihkan input teks sebelum disimpan ke DB
+                        payload[f.name] = sanitizeInput(inputEl.value);
                     }
                 }
             }
@@ -2360,7 +2411,7 @@
                             if (f.type === 'number' && inputEl.value === '') {
                                 payload[f.name] = null;
                             } else {
-                                payload[f.name] = inputEl.value;
+                                payload[f.name] = sanitizeInput(inputEl.value);
                             }
                         }
                     }
@@ -2490,7 +2541,7 @@
                             Swal.showValidationMessage('Alasan penolakan wajib diisi!');
                             return false;
                         }
-                        return alasan;
+                        return sanitizeInput(alasan);
                     }
                     return true;
                 }
@@ -2570,7 +2621,6 @@
                     if (useMockData) { 
                         mockDB[schema.table] = mockDB[schema.table].filter(x => String(x.id) !== String(id)); 
                         
-                        // [PERBAIKAN] Membersihkan data anak secara manual di Mock Mode
                         if (schema.table === 'schools') {
                             const childTables = ['gtk', 'siswa', 'gedung', 'meubeler', 'peralatan_it', 'ensiklopedia', 'pip', 'bos', 'akreditasi', 'sptjm', 'pesan'];
                             childTables.forEach(t => {
@@ -2589,14 +2639,11 @@
                         try {
                             const targetId = isNaN(id) ? id : parseInt(id);
                             
-                            // [PERBAIKAN] CASCADING DELETE MANUAL FRONTEND
-                            // Menyapu bersih seluruh data terkait terlebih dahulu agar tidak terjadi pelanggaran Foreign Key Constraint
                             if (schema.table === 'schools') {
                                 const childTables = ['gtk', 'siswa', 'gedung', 'meubeler', 'peralatan_it', 'ensiklopedia', 'pip', 'bos', 'akreditasi', 'sptjm', 'pesan'];
                                 for (const childTable of childTables) {
                                     await supabaseClient.from(childTable).delete().eq('sekolah_id', targetId);
                                 }
-                                // Lepaskan ID sekolah dari akun User agar tidak menyangkut
                                 await supabaseClient.from('users').update({ sekolah_id: null }).eq('sekolah_id', targetId);
                             }
 
