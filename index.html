@@ -1533,12 +1533,15 @@
                 Swal.fire({ title: 'Mempersiapkan Data...', text: `Sedang menyusun seluruh rekapan profil sekolah untuk periode ${appSettings.periode}...`, allowOutsideClick: false, didOpen: () => { Swal.showLoading() } });
                 const workbook = XLSX.utils.book_new();
                 for (const key of Object.keys(schemas)) {
-                    if (key === 'logs') continue; 
+                    // Pengecualian: Abaikan tabel logs dan users agar tidak ikut ter-export ke Excel
+                    if (key === 'logs' || key === 'users') continue; 
+                    
                     const schema = schemas[key];
                     const rawData = await fetchTableData(key);
                     if(rawData.length > 0) {
                         let exportData = rawData;
-                        if(['super_admin', 'admin_sd', 'admin_smp'].includes(currentUser.role) && key !== 'schools' && key !== 'users') {
+                        
+                        if(['super_admin', 'admin_sd', 'admin_smp'].includes(currentUser.role) && key !== 'schools') {
                             const schoolsData = await fetchTableData('schools');
                             exportData = rawData.map(row => {
                                 const school = schoolsData.find(s => String(s.id) === String(row.sekolah_id));
