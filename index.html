@@ -329,8 +329,8 @@
                 { id: 1, sekolah_id: 1, periode: '2026/2027 Ganjil', kelas: '7', tahun: '2025', usulan: 45, penerima: 40, selisih: 5, nominal_cair: 30000000, keterangan: '5 siswa mutasi ke luar daerah.' }
             ],
             bos: [
-                { id: 1, sekolah_id: 1, periode: '2026/2027 Ganjil', tahun: 2026, alokasi_total: 100000000, tahap1_jumlah: 55000000, tahap1_status: 'Sudah Cair', tahap2_jumlah: 45000000, tahap2_status: 'Proses', penggunaan_dana: 50000000, sisa_dana: 5000000, file_rkas: 'RKAS_2026.pdf', file_lpj: '' },
-                { id: 2, sekolah_id: 2, periode: '2026/2027 Ganjil', tahun: 2026, alokasi_total: 50000000, tahap1_jumlah: 25000000, tahap1_status: 'Sudah Cair', tahap2_jumlah: 25000000, tahap2_status: 'Belum Diajukan', penggunaan_dana: 20000000, sisa_dana: 5000000, file_rkas: '', file_lpj: '' }
+                { id: 1, sekolah_id: 1, periode: '2026/2027 Ganjil', jenis_bos: 'Reguler', jumlah_siswa: 310, no_rekening: '0011223344', tahun: 2026, alokasi_total: 100000000, tahap1_jumlah: 55000000, tahap1_status: 'Sudah Cair', pajak_tahap1: 'Sudah Dibayar', tahap2_jumlah: 45000000, tahap2_status: 'Proses', pajak_tahap2: 'Belum Dibayar', penggunaan_dana: 50000000, sisa_dana: 5000000, file_rkas: 'RKAS_2026.pdf', file_lpj: '' },
+                { id: 2, sekolah_id: 2, periode: '2026/2027 Ganjil', jenis_bos: 'Kinerja', jumlah_siswa: 45, no_rekening: '5566778899', tahun: 2026, alokasi_total: 50000000, tahap1_jumlah: 25000000, tahap1_status: 'Sudah Cair', pajak_tahap1: 'Belum Dibayar', tahap2_jumlah: 25000000, tahap2_status: 'Belum Diajukan', pajak_tahap2: 'Belum Dibayar', penggunaan_dana: 20000000, sisa_dana: 5000000, file_rkas: '', file_lpj: '' }
             ],
             akreditasi: [
                 { id: 1, sekolah_id: 1, periode: '2026/2027 Ganjil', tahun: 2024, nilai: 92, peringkat: 'A', no_sk: '123/BAN-SM/SK/2024', tanggal_sk: '2024-10-15', lembaga: 'BAN-S/M', file_sk: 'SK_Akreditasi_2024.pdf' }
@@ -452,12 +452,17 @@
             bos: {
                 title: 'Data Bantuan Operasional Sekolah (BOS)', table: 'bos', icon: 'fa-money-bill-wave',
                 fields: [
+                    { name: 'jenis_bos', label: 'Kategori BOS', type: 'select', options: ['Reguler', 'Kinerja', 'Afirmasi'], required: true },
                     { name: 'tahun', label: 'Tahun Anggaran', type: 'number', required: true, min: 2000 },
+                    { name: 'jumlah_siswa', label: 'Jumlah Siswa Penerima', type: 'number', required: true, min: 0 },
+                    { name: 'no_rekening', label: 'No. Rekening BOS', type: 'text', required: true },
                     { name: 'alokasi_total', label: 'Total Pagu 1 Tahun (Rp)', type: 'number', required: true, isCurrency: true, min: 0 },
                     { name: 'tahap1_jumlah', label: 'Cair Tahap 1 (Rp)', type: 'number', required: true, isCurrency: true, min: 0 },
                     { name: 'tahap1_status', label: 'Status Tahap 1', type: 'select', options: ['Belum Diajukan', 'Proses', 'Sudah Cair'] },
+                    { name: 'pajak_tahap1', label: 'Pajak Tahap 1', type: 'select', options: ['Belum Dibayar', 'Sudah Dibayar'] },
                     { name: 'tahap2_jumlah', label: 'Cair Tahap 2 (Rp)', type: 'number', required: true, isCurrency: true, min: 0 },
                     { name: 'tahap2_status', label: 'Status Tahap 2', type: 'select', options: ['Belum Diajukan', 'Proses', 'Sudah Cair'] },
+                    { name: 'pajak_tahap2', label: 'Pajak Tahap 2', type: 'select', options: ['Belum Dibayar', 'Sudah Dibayar'] },
                     { name: 'penggunaan_dana', label: 'Total Realisasi / Terpakai (Rp)', type: 'number', isCurrency: true, min: 0 },
                     { name: 'sisa_dana', label: 'Sisa Dana (Rp)', type: 'number', isCurrency: true, readonly: true },
                     { name: 'file_rkas', label: 'Upload RKAS (PDF)', type: 'file', accept: '.pdf' },
