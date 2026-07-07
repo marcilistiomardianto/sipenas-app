@@ -1632,6 +1632,19 @@
             if (currentUser.role === 'admin_sd') jenjangLabel = '<span class="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded ml-2">Jenjang SD</span>';
             if (currentUser.role === 'admin_smp') jenjangLabel = '<span class="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded ml-2">Jenjang SMP</span>';
 
+            // PERBAIKAN: Menambahkan pesan selamat datang khusus untuk User Sekolah
+            let welcomeMessage = '';
+            if (currentUser.role === 'user') {
+                welcomeMessage = `
+                <div class="mb-6 p-6 bg-white rounded-xl shadow-sm border-l-4 border-dinas-800 flex items-center gap-4">
+                    <i class="fa-solid fa-school text-4xl text-dinas-800"></i>
+                    <div>
+                        <h2 class="text-xl font-bold text-gray-800">Selamat Datang, ${currentUser.nama_sekolah}</h2>
+                        <p class="text-sm text-gray-500">Dashboard Monitoring Pendataan Sarana Prasarana Sekolah</p>
+                    </div>
+                </div>`;
+            }
+
             let filterHtml = '';
             if (isAdmin) {
                 filterHtml = `
@@ -1649,6 +1662,7 @@
             }
 
             let html = `
+            ${welcomeMessage}
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                 <div>
                     <h2 class="text-2xl font-bold text-gray-800 flex items-center">Ikhtisar SIPENAS ${jenjangLabel}</h2>
