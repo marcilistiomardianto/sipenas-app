@@ -1805,18 +1805,22 @@
             if (useMockData) {
                 let data = mockDB[tableName] || [];
                 
+                // DATA ARCHIVING: Filter data berdasarkan periode aktif
                 if (!['users', 'logs', 'system_settings', 'schools', 'announcements'].includes(tableName)) {
                     data = data.filter(d => d.periode === appSettings.periode);
                 }
 
+                // 1. ATURAN USER (SEKOLAH): Hanya melihat data sekolahnya sendiri
                 if (currentUser.role === 'user' && !['users', 'logs', 'system_settings', 'announcements'].includes(tableName)) {
-                    if (!currentUser.sekolah_id) return []; // Tahan fetch jika belum punya ID
+                    if (!currentUser.sekolah_id) return []; 
                     if(tableName === 'schools') data = data.filter(d => String(d.id) === String(currentUser.sekolah_id));
                     else data = data.filter(d => String(d.sekolah_id) === String(currentUser.sekolah_id));
                 } 
+                // 2. ATURAN ADMIN (SD/SMP): Hanya melihat data sekolah sesuai jenjangnya
                 else if (['admin_sd', 'admin_smp'].includes(currentUser.role) && !['users', 'logs', 'system_settings', 'announcements'].includes(tableName)) {
                     const targetJenjang = currentUser.role === 'admin_sd' ? 'SD' : 'SMP';
                     const allowedSchoolIds = (mockDB.schools || []).filter(s => s.jenjang === targetJenjang).map(s => String(s.id));
+                    
                     if (tableName === 'schools') {
                         data = data.filter(d => d.jenjang === targetJenjang);
                     } else {
@@ -1830,6 +1834,7 @@
                 }
                 return Array.isArray(data) ? [...data] : (typeof data === 'object' ? [data] : []);
             } else {
+                // LOGIKA SUPABASE (Online)
                 let query = supabaseClient.from(tableName).select('*');
                 
                 if (!['users', 'logs', 'system_settings', 'schools', 'announcements'].includes(tableName)) {
@@ -1837,7 +1842,7 @@
                 }
 
                 if (currentUser.role === 'user' && !['users', 'logs', 'system_settings', 'announcements'].includes(tableName)) {
-                    // Auto-recovery Lapis 1: Jika ID Sekolah kosong, coba tautkan berdasarkan Nama Sekolah
+                    // Auto-recovery jika ID sekolah null
                     if (!currentUser.sekolah_id && tableName === 'schools') {
                         try {
                             const { data: recSchool } = await supabaseClient.from('schools').select('id').eq('nama', currentUser.nama_sekolah).limit(1);
@@ -1849,22 +1854,25 @@
                         } catch(e) { console.error("Recovery name error", e); }
                     }
 
-                    if (!currentUser.sekolah_id) return []; // Tahan fetch jika belum punya ID
+                    if (!currentUser.sekolah_id) return []; 
 
                     if(tableName === 'schools') query = query.eq('id', currentUser.sekolah_id);
                     else query = query.eq('sekolah_id', currentUser.sekolah_id);
                 } 
                 else if (['admin_sd', 'admin_smp'].includes(currentUser.role) && !['users', 'logs', 'system_settings', 'announcements'].includes(tableName)) {
                     const targetJenjang = currentUser.role === 'admin_sd' ? 'SD' : 'SMP';
-                    const { data: schData } = await supabaseClient.from('schools').select('id').eq('jenjang', targetJenjang);
-                    const allowedIds = schData ? schData.map(s => s.id) : [];
                     
                     if (tableName === 'schools') {
                         query = query.eq('jenjang', targetJenjang);
-                    } else if (allowedIds.length > 0) {
-                        query = query.in('sekolah_id', allowedIds);
                     } else {
-                        return []; 
+                        // Admin hanya melihat data yang sekolah_id-nya memiliki jenjang terkait
+                        const { data: schData } = await supabaseClient.from('schools').select('id').eq('jenjang', targetJenjang);
+                        const allowedIds = schData ? schData.map(s => s.id) : [];
+                        if (allowedIds.length > 0) {
+                            query = query.in('sekolah_id', allowedIds);
+                        } else {
+                            return []; 
+                        }
                     }
                 }
 
