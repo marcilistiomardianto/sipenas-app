@@ -1957,9 +1957,10 @@
                     if (isSuperAdmin && (isUserTable || schemaId === 'schools')) canAdd = true;
                     if (schemaId === 'announcements' || schemaId === 'pesan') canAdd = true;
                 } else {
+                    // [PERBAIKAN] User/Sekolah tidak bisa menambah pesan atau pengumuman
                     if (schemaId === 'schools') {
                         if (filteredTableData.length === 0) canAdd = true;
-                    } else {
+                    } else if (schemaId !== 'pesan' && schemaId !== 'announcements') {
                         canAdd = true;
                     }
                 }
