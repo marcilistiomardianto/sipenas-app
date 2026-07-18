@@ -2381,7 +2381,28 @@
                 if (f.type === 'textarea') {
                     formHtml += `<textarea id="input-${f.name}" class="w-full p-2 border rounded ${readOnlyClass}" rows="3" ${required} ${isReadOnly ? 'disabled' : ''} ${extraAttrs}>${value}</textarea>`;
                 } else if (f.type === 'select') {
-                    formHtml += `<select id="input-${f.name}" class="w-full p-2 border rounded ${readOnlyClass}" ${required} ${isReadOnly ? 'disabled' : ''} ${extraAttrs}><option value="">-- Pilih --</option>${f.options.map(opt => `<option value="${opt}" ${value === opt ? 'selected' : ''}>${opt}</option>`).join('')}</select>`;
+                    // LOGIKA BARU: Filter otomatis Kelas berdasarkan Jenjang Sekolah
+                    let dynamicOptions = f.options;
+                    if (f.name === 'kelas') {
+                        let targetJenjang = null;
+                        
+                        if (currentUser.role === 'user') {
+                            const school = currentSchoolsData.find(s => String(s.id) === String(currentUser.sekolah_id));
+                            if (school) targetJenjang = school.jenjang;
+                        } else if (currentUser.role === 'admin_sd') {
+                            targetJenjang = 'SD';
+                        } else if (currentUser.role === 'admin_smp') {
+                            targetJenjang = 'SMP';
+                        } else if (id && rowData.sekolah_id) {
+                            const school = currentSchoolsData.find(s => String(s.id) === String(rowData.sekolah_id));
+                            if (school) targetJenjang = school.jenjang;
+                        }
+                        
+                        if (targetJenjang === 'SD') dynamicOptions = ['1', '2', '3', '4', '5', '6'];
+                        if (targetJenjang === 'SMP') dynamicOptions = ['7', '8', '9'];
+                    }
+                    
+                    formHtml += `<select id="input-${f.name}" class="w-full p-2 border rounded ${readOnlyClass}" ${required} ${isReadOnly ? 'disabled' : ''} ${extraAttrs}><option value="">-- Pilih --</option>${dynamicOptions.map(opt => `<option value="${opt}" ${String(value) === String(opt) ? 'selected' : ''}>${opt}</option>`).join('')}</select>`;
                 } else if (f.type === 'select_sekolah') {
                     const opts = currentSchoolsData.map(s => `<option value="${s.id}" ${value == s.id ? 'selected' : ''}>${s.npsn} - ${s.nama}</option>`).join('');
                     formHtml += `<select id="input-${f.name}" class="w-full p-2 border rounded ${readOnlyClass}" ${required} ${isReadOnly ? 'disabled' : ''}><option value="">-- Pilih Sekolah --</option>${opts}</select>`;
