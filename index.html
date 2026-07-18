@@ -1599,6 +1599,73 @@
             }, 2500);
         }
 
+        async function copyFromPrevious(schemaId) {
+            Swal.fire({
+                title: 'Salin Arsip Sebelumnya?',
+                text: "Aplikasi akan mencari data Anda (Gedung, Siswa, GTK, dll) di periode sebelumnya dan menyalinnya ke periode saat ini (" + appSettings.periode + ") agar Anda tidak perlu mengetik ulang dari nol.",
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#eab308',
+                confirmButtonText: 'Ya, Salin Data!'
+            }).then(async (result) => {
+                if(result.isConfirmed) {
+                    Swal.fire({ title: 'Menyalin Data...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                    try {
+                        const schema = schemas[schemaId];
+                        let oldData = [];
+                        
+                        if (useMockData) {
+                            oldData = mockDB[schema.table].filter(d => String(d.sekolah_id) === String(currentUser.sekolah_id) && d.periode !== appSettings.periode);
+                        } else {
+                            const { data, error } = await supabaseClient.from(schema.table).select('*')
+                                .eq('sekolah_id', currentUser.sekolah_id)
+                                .neq('periode', appSettings.periode)
+                                .order('id', { ascending: false });
+                            if (error) throw error;
+                            oldData = data || [];
+                        }
+
+                        if (oldData.length === 0) {
+                            Swal.fire('Tidak Ada Arsip', 'Sistem tidak menemukan data dari periode sebelumnya yang bisa disalin.', 'info');
+                            return;
+                        }
+
+                        // Mengambil data dari periode masa lalu yang paling terakhir
+                        const periods = [...new Set(oldData.map(d => d.periode))];
+                        periods.sort((a, b) => b.localeCompare(a));
+                        const targetPeriod = periods[0]; 
+
+                        const dataToCopy = oldData.filter(d => d.periode === targetPeriod);
+                        
+                        const newRecords = dataToCopy.map(d => {
+                            let record = { ...d, periode: appSettings.periode };
+                            delete record.id; // hapus ID lama agar Supabase membuat ID baru otomatis
+                            if (record.status_verifikasi) record.status_verifikasi = 'Menunggu'; // reset status validasi
+                            if (record.status) record.status = 'Menunggu';
+                            return record;
+                        });
+
+                        if (useMockData) {
+                            newRecords.forEach((r, i) => {
+                                r.id = Date.now() + i;
+                                mockDB[schema.table].push(r);
+                            });
+                        } else {
+                            const { error } = await supabaseClient.from(schema.table).insert(newRecords);
+                            if (error) throw error;
+                        }
+
+                        logActivity(`Menyalin otomatis ${newRecords.length} baris data ${schema.title} dari periode ${targetPeriod}`);
+                        Swal.fire('Berhasil!', `${newRecords.length} baris data berhasil disalin dari periode ${targetPeriod}. Silakan Edit data yang mengalami perubahan.`, 'success');
+                        loadPage(currentMenu);
+
+                    } catch (err) {
+                        Swal.fire('Gagal Menyalin', err.message, 'error');
+                    }
+                }
+            });
+        }
+
         async function renderDashboard() {
             const content = document.getElementById('dynamic-content');
             
