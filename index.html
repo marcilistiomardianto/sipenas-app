@@ -229,24 +229,32 @@
 
     <!-- PENGATURAN SUPABASE & LOGIC APLIKASI -->
     <script>
+        // ==========================================
         // FITUR KEAMANAN GLOBAL (Anti-XSS)
+        // ==========================================
         function sanitizeInput(str) {
             if (typeof str !== 'string') return str;
             return str.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
         }
 
-        // KONFIGURASI SUPABASE 
+        // ==========================================
+        // 1. KONFIGURASI SUPABASE 
+        // ==========================================
         const SUPABASE_URL = 'https://ruvqyojeftgllbisknff.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_Y8-l3DWcKU2BEdpJ99u_fw_WDS60ylw';
         
         let supabaseClient = null;
         const useMockData = SUPABASE_URL.includes('YOUR_PROJECT_ID');
         
-        if (!useMockData && window.supabase) {
+        if (!useMockData) {
             supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        } else {
+            console.warn("PERINGATAN: Aplikasi berjalan di MOCK MODE (Uji Coba) karena SUPABASE_URL belum diganti.");
         }
 
-        // STATE MANAGEMENT & MOCK DATA
+        // ==========================================
+        // 2. STATE MANAGEMENT & MOCK DATA
+        // ==========================================
         let currentUser = null; 
         let currentMenu = 'dashboard';
         let currentTableData = [];
@@ -260,8 +268,9 @@
         let mapInstance = null; 
         let appSettings = { periode: '2026/2027 Ganjil', is_locked: false }; 
         let idleTime = 0;
-        const IDLE_LIMIT = 30;
+        const IDLE_LIMIT = 30; // Batas Waktu Idle dalam menit sebelum Auto-Logout
 
+        // State untuk Profil Dinas & Pusat Bantuan
         let appProfilDinas = {
             nama_pemda: 'Pemerintah Kabupaten Manggarai Barat',
             nama_dinas: 'Dinas Pendidikan Kepemudaan dan Olahraga',
@@ -541,6 +550,7 @@
             { id: 'bantuan', label: 'Pusat Bantuan', icon: 'fa-circle-question', roles: ['super_admin', 'admin_sd', 'admin_smp', 'user'] }
         ];
 
+        // MENGATUR KOP SURAT BERDASARKAN SIAPA YANG MENCETAK (DINAS ATAU SEKOLAH)
         function setPrintHeaderFooter(schoolId = null) {
             if (schoolId) {
                 const school = currentSchoolsData.find(s => String(s.id) === String(schoolId));
@@ -566,11 +576,15 @@
             
             initAuth();
 
+            // Setup Mobile Menu Toggles
             document.getElementById('mobile-menu-btn').addEventListener('click', toggleSidebar);
             document.getElementById('close-sidebar-btn').addEventListener('click', toggleSidebar);
             document.getElementById('mobile-overlay').addEventListener('click', toggleSidebar);
         };
 
+        // ==========================================
+        // 3. LOGIKA AUTHENTICATION
+        // ==========================================
         function initAuth() {
             try {
                 let storedUser = JSON.parse(localStorage.getItem('sipas_user'));
@@ -770,6 +784,9 @@
             }
         }
 
+        // ==========================================
+        // 4. CORE APP LOGIC
+        // ==========================================
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
             const overlay = document.getElementById('mobile-overlay');
@@ -977,6 +994,7 @@
         async function renderDashboard() {
             const content = document.getElementById('dynamic-content');
             
+            // --- KARTU SELAMAT DATANG ---
             let welcomeHtml = '';
             const isAdmin = ['super_admin', 'admin_sd', 'admin_smp'].includes(currentUser.role);
             if (!isAdmin) {
@@ -1011,6 +1029,7 @@
                     </div>
                 `;
             }
+            // --- AKHIR KARTU SELAMAT DATANG ---
 
             const [schools, gtk, siswa, gedung, meubeler, it, ensiklopedia, pip, bos, akreditasi] = await Promise.all([
                 fetchTableData('schools'), fetchTableData('gtk'), fetchTableData('siswa'),
@@ -1879,23 +1898,37 @@
                     if (f.type === 'number' && inputEl.value === '') {
                         payload[f.name] = null;
                     } else {
+                        // KEAMANAN ANTI-XSS
                         payload[f.name] = sanitizeInput(inputEl.value);
                     }
                 }
             }
 
+            // CEK DUPLIKAT (Hanya berlaku jika input tidak kosong dan bukan strip)
             for (const f of schema.fields) {
-                if (f.unique && payload[f.name]) {
+                if (f.unique && payload[f.name] && payload[f.name].trim() !== '' && payload[f.name].trim() !== '-') {
                     let isDuplicate = false;
                     let existingId = null;
+                    
+                    // Batasi cek NIP/Duplikat hanya di tahun ajaran ini
+                    const hasPeriode = !['users', 'logs', 'system_settings', 'schools', 'announcements'].includes(schema.table);
+
                     if (useMockData) {
-                        const dupData = mockDB[schema.table].find(d => d[f.name] === payload[f.name] && String(d.id) !== String(editingId));
+                        const dupData = mockDB[schema.table].find(d => {
+                            let isMatch = d[f.name] === payload[f.name] && String(d.id) !== String(editingId);
+                            if (hasPeriode) isMatch = isMatch && d.periode === appSettings.periode;
+                            return isMatch;
+                        });
+                        
                         if(dupData) {
                             isDuplicate = true;
                             existingId = dupData.id;
                         }
                     } else {
-                        const { data } = await supabaseClient.from(schema.table).select('id').eq(f.name, payload[f.name]).neq('id', editingId || '0');
+                        let query = supabaseClient.from(schema.table).select('id').eq(f.name, payload[f.name]).neq('id', editingId || '0');
+                        if (hasPeriode) query = query.eq('periode', appSettings.periode);
+                        
+                        const { data } = await query;
                         if (data && data.length > 0) {
                             isDuplicate = true;
                             existingId = data[0].id;
@@ -1919,7 +1952,7 @@
                             return;
                         }
 
-                        Swal.fire('Validasi Gagal!', `${f.label} "${payload[f.name]}" sudah terdaftar di sistem. Tidak boleh ada data duplikat!`, 'warning');
+                        Swal.fire('Validasi Gagal!', `${f.label} "${payload[f.name]}" sudah terdaftar di sistem pada periode ini. Tidak boleh ada data duplikat!`, 'warning');
                         return; 
                     }
                 }
@@ -2240,6 +2273,7 @@
             const isAdmin = ['super_admin', 'admin_sd', 'admin_smp'].includes(currentUser.role);
             const isLogTable = currentMenu === 'logs';
             
+            // Atur Kop Surat Otomatis jika yang print adalah User (Sekolah)
             if (!isAdmin && currentUser.sekolah_id) {
                 setPrintHeaderFooter(currentUser.sekolah_id);
             } else {
@@ -2287,6 +2321,106 @@
             setTimeout(() => { window.print(); logActivity('Mencetak Tabel ' + title); }, 500);
         }
 
+        async function exportFullProfile() {
+            const { value: targetPeriod } = await Swal.fire({
+                title: 'Pilih Tahun Ajaran',
+                input: 'text',
+                inputLabel: 'Masukkan periode yang ingin diekspor ke Excel',
+                inputValue: appSettings.periode,
+                showCancelButton: true,
+                confirmButtonColor: '#3b82f6',
+                confirmButtonText: 'Ekspor Data',
+                cancelButtonText: 'Batal',
+                inputValidator: (value) => {
+                    if (!value) return 'Periode tidak boleh kosong!';
+                }
+            });
+
+            if (!targetPeriod) return;
+
+            try {
+                Swal.fire({ title: 'Mempersiapkan Data...', text: `Sedang menyusun rekapan profil untuk periode ${targetPeriod}...`, allowOutsideClick: false, didOpen: () => { Swal.showLoading() } });
+                const workbook = XLSX.utils.book_new();
+                
+                for (const key of Object.keys(schemas)) {
+                    // Pengecualian: Abaikan tabel logs dan users agar tidak ikut ter-export ke Excel (Keamanan)
+                    if (key === 'logs' || key === 'users') continue; 
+                    
+                    const schema = schemas[key];
+                    let rawData = [];
+                    
+                    // Ambil data sesuai target period
+                    if (useMockData) {
+                        rawData = mockDB[key] || [];
+                        if (!['schools', 'announcements'].includes(key)) {
+                            rawData = rawData.filter(d => d.periode === targetPeriod);
+                        }
+                        if (currentUser.role === 'admin_sd' && key !== 'schools') {
+                             const allowedSchoolIds = (mockDB.schools || []).filter(s => s.jenjang === 'SD').map(s => String(s.id));
+                             rawData = rawData.filter(d => allowedSchoolIds.includes(String(d.sekolah_id)));
+                        }
+                        if (currentUser.role === 'admin_smp' && key !== 'schools') {
+                             const allowedSchoolIds = (mockDB.schools || []).filter(s => s.jenjang === 'SMP').map(s => String(s.id));
+                             rawData = rawData.filter(d => allowedSchoolIds.includes(String(d.sekolah_id)));
+                        }
+                        if (currentUser.role === 'user' && key !== 'schools') {
+                             rawData = rawData.filter(d => String(d.sekolah_id) === String(currentUser.sekolah_id));
+                        }
+                    } else {
+                        let query = supabaseClient.from(key).select('*');
+                        if (!['schools', 'announcements'].includes(key)) {
+                            query = query.eq('periode', targetPeriod);
+                        }
+                        if (['admin_sd', 'admin_smp'].includes(currentUser.role) && !['schools', 'announcements'].includes(key)) {
+                            const targetJenjang = currentUser.role === 'admin_sd' ? 'SD' : 'SMP';
+                            const { data: schData } = await supabaseClient.from('schools').select('id').eq('jenjang', targetJenjang);
+                            const allowedIds = schData ? schData.map(s => s.id) : [];
+                            if(allowedIds.length > 0) query = query.in('sekolah_id', allowedIds);
+                            else query = query.eq('sekolah_id', 0);
+                        }
+                        if (currentUser.role === 'user' && !['schools', 'announcements'].includes(key)) {
+                             query = query.eq('sekolah_id', currentUser.sekolah_id);
+                        }
+                        const { data } = await query;
+                        rawData = data || [];
+                    }
+
+                    if(rawData.length > 0) {
+                        let exportData = rawData;
+                        
+                        if(['super_admin', 'admin_sd', 'admin_smp'].includes(currentUser.role) && key !== 'schools') {
+                            let schoolsData = [];
+                            if (useMockData) schoolsData = mockDB.schools || [];
+                            else { const { data } = await supabaseClient.from('schools').select('*'); schoolsData = data || []; }
+                            
+                            exportData = rawData.map(row => {
+                                const school = schoolsData.find(s => String(s.id) === String(row.sekolah_id));
+                                return { 'Asal Sekolah': school ? school.nama : 'Unknown', ...row };
+                            });
+                        }
+                        
+                        const cleanData = exportData.map(row => {
+                            let cleanRow = {};
+                            if (row['Asal Sekolah']) cleanRow['Asal Sekolah'] = row['Asal Sekolah'];
+                            schema.fields.forEach(f => { cleanRow[f.label] = row[f.name]; });
+                            return cleanRow;
+                        });
+                        
+                        const worksheet = XLSX.utils.json_to_sheet(cleanData);
+                        const safeSheetName = schema.title.substring(0, 31).replace(/[\\/*?:\[\]]/g, '');
+                        XLSX.utils.book_append_sheet(workbook, worksheet, safeSheetName);
+                    }
+                }
+                
+                const roleName = currentUser.role.includes('admin') ? 'Dinas' : currentUser.nama_sekolah.replace(/[^a-zA-Z0-9]/g, '');
+                const fileName = `Profil_Lengkap_${roleName}_${targetPeriod.replace(/\//g, '-')}.xlsx`;
+                
+                XLSX.writeFile(workbook, fileName);
+                logActivity(`Export Excel Multi-Tabel untuk periode ${targetPeriod}`);
+                Swal.fire({ icon: 'success', title: 'Berhasil!', text: 'File Profil Lengkap (Excel) berhasil diunduh.', confirmButtonColor: '#3b82f6' });
+            } catch (err) { Swal.fire('Error!', 'Gagal mengekspor profil lengkap: ' + err.message, 'error'); }
+        }
+
         function exportToExcel(fileName) { 
             if(filteredTableData.length === 0) { 
                 Swal.fire('Informasi', 'Tidak ada data untuk diekspor pada tabel ini.', 'info');
@@ -2303,15 +2437,644 @@
             XLSX.writeFile(workbook, `Rekap_${fileName}_${new Date().toISOString().slice(0,10)}.xlsx`); 
         }
 
-        function downloadTemplate() { 
-            const schema = schemas[currentMenu]; 
-            const headers = schema.fields.map(f => f.label); 
-            const worksheet = XLSX.utils.aoa_to_sheet([headers]); 
-            const workbook = XLSX.utils.book_new(); 
-            XLSX.utils.book_append_sheet(workbook, worksheet, "Template"); 
-            XLSX.writeFile(workbook, `Template_Import_${schema.title}.xlsx`); 
+        async function handleDapodikImport(event, type) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const ext = file.name.split('.').pop().toLowerCase();
+            if(!['xls', 'xlsx'].includes(ext)) {
+                Swal.fire('Format Salah', 'Harap unggah file hasil export Excel resmi dari aplikasi Dapodik (.xls / .xlsx)', 'error');
+                event.target.value = ''; return;
+            }
+
+            Swal.fire({ title: 'Sinkronisasi Dapodik...', text: `Membaca file ${file.name} dan menyelaraskan dengan format SIPENAS...`, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            
+            setTimeout(() => {
+                logActivity(`Melakukan Sinkronisasi Data ${type.toUpperCase()} dari File Dapodik.`);
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Sinkronisasi Berhasil!',
+                    text: `Sistem berhasil memetakan dan menarik data ${type.toUpperCase()} dari dokumen Dapodik yang diunggah. Database SIPENAS telah disesuaikan.`,
+                    confirmButtonColor: '#3b82f6'
+                }).then(() => {
+                    loadPage(currentMenu);
+                });
+                event.target.value = '';
+            }, 2500);
+        }
+        
+        async function handleExcelImport(event) { 
+            const file = event.target.files[0]; 
+            if (!file) return; 
+            
+            const reader = new FileReader(); 
+            reader.onload = async (e) => { 
+                try { 
+                    const data = new Uint8Array(e.target.result); 
+                    const workbook = XLSX.read(data, { type: 'array' }); 
+                    const worksheet = workbook.Sheets[workbook.SheetNames[0]]; 
+                    const excelData = XLSX.utils.sheet_to_json(worksheet); 
+                    
+                    if (excelData.length === 0) {
+                        Swal.fire('Kosong', 'Tidak ada data di dalam file Excel.', 'warning');
+                        return;
+                    }
+                    
+                    const schema = schemas[currentMenu]; 
+                    const newRecords = excelData.map((row, index) => { 
+                        let record = {}; 
+                        schema.fields.forEach(f => { if (row[f.label] !== undefined) record[f.name] = row[f.label]; }); 
+                        
+                        if (!['users', 'logs', 'system_settings', 'schools', 'announcements'].includes(schema.table)) {
+                            record.periode = appSettings.periode;
+                        }
+
+                        if (currentUser.role === 'user' && schema.table !== 'schools') record.sekolah_id = currentUser.sekolah_id || 1; 
+                        
+                        if (schema.table === 'siswa') {
+                            record.total_siswa = Number(record.total_l || 0) + Number(record.total_p || 0);
+                        }
+
+                        if (useMockData) record.id = Date.now() + index; 
+                        return record; 
+                    }); 
+
+                    if (useMockData) { 
+                        if (!mockDB[schema.table]) mockDB[schema.table] = []; 
+                        mockDB[schema.table].push(...newRecords); 
+                        logActivity(`Melakukan Import Excel (${newRecords.length} baris) ke tabel ${schema.title}`);
+                        loadPage(currentMenu); 
+                        Swal.fire('Berhasil!', `Berhasil mengimpor ${newRecords.length} baris data (Mock DB).`, 'success');
+                    } else { 
+                        Swal.fire({ title: 'Mengimpor...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } });
+                        const { error } = await supabaseClient.from(schema.table).insert(newRecords); 
+                        if (error) throw error; 
+                        logActivity(`Melakukan Import Excel (${newRecords.length} baris) ke tabel ${schema.title}`);
+                        loadPage(currentMenu); 
+                        Swal.fire('Berhasil!', `Berhasil mengimpor ${newRecords.length} baris data.`, 'success');
+                    } 
+                } catch (err) { 
+                    Swal.fire('Gagal!', "Kesalahan impor: " + err.message, 'error');
+                } 
+                event.target.value = ''; 
+            }; 
+            reader.readAsArrayBuffer(file); 
         }
 
+        function renderProfilDinas() {
+            const content = document.getElementById('dynamic-content');
+            content.innerHTML = `
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-8 max-w-4xl mx-auto">
+                <div class="mb-8 border-b pb-4">
+                    <h2 class="text-xl font-bold text-gray-800"><i class="fa-solid fa-building-flag text-blue-500 mr-2"></i> Profil Dinas & Pengaturan Cetak</h2>
+                    <p class="text-sm text-gray-500">Sesuaikan informasi Kop Surat, Penandatangan, dan Kontak Helpdesk (Pusat Bantuan) secara dinamis.</p>
+                </div>
+                <form onsubmit="saveProfilDinas(event)">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <div class="p-4 border border-gray-200 rounded-lg bg-gray-50">
+                            <h3 class="font-bold text-gray-700 mb-4 border-b pb-2">Informasi Kop Surat</h3>
+                            <div class="mb-3">
+                                <label class="block text-xs font-bold text-gray-600 mb-1">Nama Pemerintah Daerah</label>
+                                <input type="text" id="pd-pemda" value="${appProfilDinas.nama_pemda || ''}" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-dinas-500 outline-none" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="block text-xs font-bold text-gray-600 mb-1">Nama Instansi / Dinas</label>
+                                <input type="text" id="pd-dinas" value="${appProfilDinas.nama_dinas || ''}" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-dinas-500 outline-none" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="block text-xs font-bold text-gray-600 mb-1">Alamat Lengkap</label>
+                                <textarea id="pd-alamat" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-dinas-500 outline-none" rows="2" required>${appProfilDinas.alamat || ''}</textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label class="block text-xs font-bold text-gray-600 mb-1">Kontak (Email / Website)</label>
+                                <input type="text" id="pd-kontak" value="${appProfilDinas.kontak || ''}" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-dinas-500 outline-none" required>
+                            </div>
+                            <div class="mb-3 border-t pt-3 mt-3">
+                                <label class="block text-xs font-bold text-gray-600 mb-2"><i class="fa-solid fa-image text-blue-500 mr-1"></i> Upload Logo Dinas (PNG/JPG)</label>
+                                <input type="file" id="pd-logo" accept=".png, .jpg, .jpeg" class="w-full p-2 border border-gray-300 rounded bg-white text-sm focus:outline-none">
+                                ${appProfilDinas.logo_dinas ? `<p class="text-xs text-green-600 mt-2 font-semibold"><i class="fa-solid fa-check-circle"></i> Logo Kustom Aktif.</p>` : `<p class="text-xs text-gray-500 mt-2">Gunakan background transparan (PNG) untuk hasil cetak terbaik.</p>`}
+                            </div>
+                        </div>
+                        <div class="p-4 border border-gray-200 rounded-lg bg-gray-50">
+                            <h3 class="font-bold text-gray-700 mb-4 border-b pb-2">Penandatangan (Kepala Dinas)</h3>
+                            <div class="mb-3">
+                                <label class="block text-xs font-bold text-gray-600 mb-1">Nama Lengkap & Gelar</label>
+                                <input type="text" id="pd-nama" value="${appProfilDinas.nama_kadis || ''}" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-dinas-500 outline-none" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="block text-xs font-bold text-gray-600 mb-1">Pangkat / Golongan</label>
+                                <input type="text" id="pd-pangkat" value="${appProfilDinas.pangkat_kadis || ''}" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-dinas-500 outline-none" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="block text-xs font-bold text-gray-600 mb-1">NIP</label>
+                                <input type="text" id="pd-nip" value="${appProfilDinas.nip_kadis || ''}" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-dinas-500 outline-none" required>
+                            </div>
+                        </div>
+                        
+                        <div class="p-4 border border-gray-200 rounded-lg bg-gray-50 md:col-span-2 shadow-inner">
+                            <h3 class="font-bold text-gray-700 mb-4 border-b pb-2"><i class="fa-solid fa-headset text-blue-500 mr-2"></i> Pusat Bantuan & Buku Panduan</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div class="mb-3">
+                                    <label class="block text-xs font-bold text-gray-600 mb-1"><i class="fa-brands fa-whatsapp text-green-500"></i> WhatsApp Helpdesk</label>
+                                    <input type="text" id="pd-wa" value="${appProfilDinas.wa_helpdesk || ''}" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-dinas-500 outline-none" required placeholder="Contoh: 0812-3456-7890">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="block text-xs font-bold text-gray-600 mb-1"><i class="fa-solid fa-envelope text-red-500"></i> Email Helpdesk</label>
+                                    <input type="text" id="pd-email" value="${appProfilDinas.email_helpdesk || ''}" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-dinas-500 outline-none" required placeholder="admin@domain.com">
+                                </div>
+                                <div class="mb-3 md:col-span-2 border-t pt-4">
+                                    <label class="block text-xs font-bold text-gray-600 mb-2"><i class="fa-solid fa-file-pdf text-red-500"></i> Upload Buku Panduan Pengguna (PDF)</label>
+                                    <input type="file" id="pd-panduan" accept=".pdf" class="w-full p-2 border border-gray-300 rounded bg-white text-sm focus:outline-none">
+                                    ${appProfilDinas.file_panduan ? `<p class="text-xs text-green-600 mt-2 font-semibold"><i class="fa-solid fa-check-circle"></i> File Panduan Saat Ini Sudah Tersedia di Database</p>` : `<p class="text-xs text-red-500 mt-2">Belum ada file panduan yang diunggah untuk pengguna.</p>`}
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                    <div class="flex justify-end">
+                        <button type="submit" class="px-6 py-2.5 bg-dinas-800 text-white font-bold rounded hover:bg-dinas-900 transition flex items-center shadow-lg">
+                            <i class="fa-solid fa-save mr-2"></i> Simpan Profil & Helpdesk
+                        </button>
+                    </div>
+                </form>
+            </div>`;
+        }
+
+        async function saveProfilDinas(e) {
+            e.preventDefault();
+            const btnSave = e.target.querySelector('button[type="submit"]');
+            const originalBtnText = btnSave.innerHTML;
+            
+            const payload = {
+                nama_pemda: sanitizeInput(document.getElementById('pd-pemda').value),
+                nama_dinas: sanitizeInput(document.getElementById('pd-dinas').value),
+                alamat: sanitizeInput(document.getElementById('pd-alamat').value),
+                kontak: sanitizeInput(document.getElementById('pd-kontak').value),
+                nama_kadis: sanitizeInput(document.getElementById('pd-nama').value),
+                pangkat_kadis: sanitizeInput(document.getElementById('pd-pangkat').value),
+                nip_kadis: sanitizeInput(document.getElementById('pd-nip').value),
+                wa_helpdesk: sanitizeInput(document.getElementById('pd-wa').value),
+                email_helpdesk: sanitizeInput(document.getElementById('pd-email').value)
+            };
+
+            const filePanduanInput = document.getElementById('pd-panduan');
+            const fileLogoInput = document.getElementById('pd-logo');
+            
+            try {
+                btnSave.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Memproses...`;
+                btnSave.disabled = true;
+
+                if (filePanduanInput.files && filePanduanInput.files.length > 0) {
+                    const file = filePanduanInput.files[0];
+                    if (file.type !== 'application/pdf') {
+                        Swal.fire('Format Salah', 'Buku Panduan harus berformat PDF.', 'error');
+                        return;
+                    }
+                    if (file.size > 5 * 1024 * 1024) { 
+                        Swal.fire('Terlalu Besar', 'Maksimal ukuran file PDF adalah 5MB.', 'error');
+                        return;
+                    }
+
+                    if (useMockData) {
+                        payload.file_panduan = 'Buku_Panduan_SIPENAS_Mock.pdf';
+                    } else {
+                        btnSave.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Mengunggah PDF...`;
+                        const fileName = `panduan_${Date.now()}.pdf`;
+                        const filePath = `system/${fileName}`;
+                        
+                        const { data: uploadData, error: uploadError } = await supabaseClient.storage.from('sipas_files').upload(filePath, file);
+                        if (uploadError) throw uploadError;
+                        const { data: publicUrlData } = supabaseClient.storage.from('sipas_files').getPublicUrl(filePath);
+                        payload.file_panduan = publicUrlData.publicUrl;
+                    }
+                } else {
+                    payload.file_panduan = appProfilDinas.file_panduan || '';
+                }
+
+                if (fileLogoInput.files && fileLogoInput.files.length > 0) {
+                    const fileLogo = fileLogoInput.files[0];
+                    if (!fileLogo.type.startsWith('image/')) {
+                        Swal.fire('Format Salah', 'Logo harus berupa gambar (JPG/PNG).', 'error');
+                        return;
+                    }
+                    if (fileLogo.size > 2 * 1024 * 1024) { 
+                        Swal.fire('Terlalu Besar', 'Ukuran Logo maksimal 2MB.', 'error');
+                        return;
+                    }
+
+                    if (useMockData) {
+                        payload.logo_dinas = 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a6/Logo_of_the_Ministry_of_Education_and_Culture_of_the_Republic_of_Indonesia.svg/800px-Logo_of_the_Ministry_of_Education_and_Culture_of_the_Republic_of_Indonesia.svg.png';
+                    } else {
+                        btnSave.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Mengunggah Logo...`;
+                        const fileNameLogo = `logo_${Date.now()}.${fileLogo.name.split('.').pop()}`;
+                        const filePathLogo = `system/${fileNameLogo}`;
+                        
+                        const { data: uploadLogoData, error: uploadLogoError } = await supabaseClient.storage.from('sipas_files').upload(filePathLogo, fileLogo);
+                        if (uploadLogoError) throw uploadLogoError;
+                        const { data: publicUrlLogo } = supabaseClient.storage.from('sipas_files').getPublicUrl(filePathLogo);
+                        payload.logo_dinas = publicUrlLogo.publicUrl;
+                    }
+                } else {
+                    payload.logo_dinas = appProfilDinas.logo_dinas || '';
+                }
+
+                if (useMockData) {
+                    mockDB.profil_dinas = { id: 1, ...payload };
+                    appProfilDinas = payload;
+                    applyProfilDinasToDOM();
+                    logActivity('Mengubah Profil Dinas & Pusat Bantuan');
+                    Swal.fire('Berhasil!', 'Profil Dinas & Informasi Pusat Bantuan berhasil diperbarui.', 'success');
+                } else {
+                    Swal.fire({ title: 'Menyimpan...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                    const { error } = await supabaseClient.from('profil_dinas').upsert({ id: 1, ...payload });
+                    if (error) {
+                        Swal.fire('Error!', error.message, 'error');
+                    } else {
+                        appProfilDinas = payload;
+                        applyProfilDinasToDOM();
+                        logActivity('Mengubah Profil Dinas & Pusat Bantuan');
+                        Swal.fire('Berhasil!', 'Profil Dinas & Informasi Pusat Bantuan berhasil diperbarui.', 'success');
+                    }
+                }
+            } catch(err) {
+                Swal.fire('Error', err.message, 'error');
+            } finally {
+                btnSave.innerHTML = originalBtnText;
+                btnSave.disabled = false;
+            }
+        }
+
+        function renderSystemSettings() {
+            const content = document.getElementById('dynamic-content');
+            content.innerHTML = `
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-8 max-w-3xl mx-auto">
+                <div class="mb-8 border-b pb-4 flex justify-between items-center">
+                    <div>
+                        <h2 class="text-xl font-bold text-gray-800"><i class="fa-solid fa-sliders text-blue-500 mr-2"></i> Pengaturan Global Sistem</h2>
+                        <p class="text-sm text-gray-500">Konfigurasi ini akan berdampak pada seluruh pengguna (Sekolah).</p>
+                    </div>
+                </div>
+                
+                <form id="settings-form" onsubmit="saveSystemSettings(event)">
+                    <div class="mb-6">
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Tahun Ajaran / Periode Aktif</label>
+                        <input type="text" id="setting-periode" value="${appSettings.periode}" class="w-full p-3 border border-gray-300 rounded focus:ring-2 focus:ring-dinas-500 focus:outline-none" required placeholder="Contoh: 2026/2027 Ganjil">
+                        <p class="text-xs text-gray-500 mt-1">Mengubah periode akan menampilkan tabel kosong yang siap diisi untuk periode baru, sementara data lama tersimpan sebagai arsip.</p>
+                    </div>
+
+                    <div class="mb-8 p-6 bg-gray-50 border border-gray-200 rounded-lg">
+                        <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                            <div>
+                                <h3 class="font-bold text-gray-800 mb-1">Status Kunci Pendataan (Global Lockout)</h3>
+                                <p class="text-sm text-gray-600 max-w-lg">Jika opsi ini diaktifkan (Terkunci), seluruh sekolah <b>tidak akan bisa menambah, mengubah, atau menghapus</b> data apapun pada periode berjalan.</p>
+                            </div>
+                            <div>
+                                <select id="setting-lock" class="p-2 border font-bold rounded focus:outline-none ${appSettings.is_locked ? 'border-red-500 text-red-700 bg-red-50' : 'border-green-500 text-green-700 bg-green-50'}">
+                                    <option value="false" ${!appSettings.is_locked ? 'selected' : ''}>TERBUKA</option>
+                                    <option value="true" ${appSettings.is_locked ? 'selected' : ''}>TERKUNCI</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end">
+                        <button type="submit" class="px-6 py-2.5 bg-dinas-800 text-white font-bold rounded hover:bg-dinas-900 transition flex items-center shadow-lg">
+                            <i class="fa-solid fa-save mr-2"></i> Simpan Konfigurasi
+                        </button>
+                    </div>
+                </form>
+            </div>`;
+
+            document.getElementById('setting-lock').addEventListener('change', function() {
+                if(this.value === 'true') {
+                    this.className = 'p-2 border font-bold rounded focus:outline-none border-red-500 text-red-700 bg-red-50';
+                } else {
+                    this.className = 'p-2 border font-bold rounded focus:outline-none border-green-500 text-green-700 bg-green-50';
+                }
+            });
+        }
+
+        async function saveSystemSettings(e) {
+            e.preventDefault();
+            const newPeriode = sanitizeInput(document.getElementById('setting-periode').value);
+            const newLock = document.getElementById('setting-lock').value === 'true';
+
+            const payload = { periode: newPeriode, is_locked: newLock };
+
+            if (useMockData) {
+                mockDB.system_settings = { ...mockDB.system_settings, ...payload };
+                appSettings = mockDB.system_settings;
+                logActivity(`Mengubah pengaturan sistem (Periode: ${newPeriode}, Lock: ${newLock})`);
+                Swal.fire('Berhasil!', 'Konfigurasi sistem berhasil diperbarui.', 'success').then(() => { window.location.reload(); });
+            } else {
+                const { error } = await supabaseClient.from('system_settings').update(payload).eq('id', 1);
+                if (error) {
+                    Swal.fire('Error!', error.message, 'error');
+                } else {
+                    appSettings = payload;
+                    logActivity(`Mengubah pengaturan sistem (Periode: ${newPeriode}, Lock: ${newLock})`);
+                    Swal.fire('Berhasil!', 'Konfigurasi sistem berhasil diperbarui.', 'success').then(() => { window.location.reload(); });
+                }
+            }
+        }
+
+        async function renderMap() {
+            const content = document.getElementById('dynamic-content');
+            content.innerHTML = `
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 h-full min-h-[500px] flex flex-col">
+                    <div class="mb-4">
+                        <h3 class="text-lg font-bold text-gray-800">Peta Sebaran Sekolah</h3>
+                        <p class="text-sm text-gray-500">Visualisasi geospasial lokasi sekolah di Kabupaten Manggarai Barat.</p>
+                    </div>
+                    <div id="leaflet-map" class="flex-1 rounded border border-gray-300 min-h-[400px]"></div>
+                </div>
+            `;
+            const schools = await fetchTableData('schools');
+            mapInstance = L.map('leaflet-map').setView([-8.496, 119.882], 12);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(mapInstance);
+            schools.forEach(s => {
+                if (s.latitude && s.longitude) {
+                    const lat = parseFloat(s.latitude);
+                    const lng = parseFloat(s.longitude);
+                    if(!isNaN(lat) && !isNaN(lng)) L.marker([lat, lng]).addTo(mapInstance).bindPopup(`<b>${s.nama}</b><br>NPSN: ${s.npsn}<br>Jenjang: ${s.jenjang || '-'}<br>${s.alamat || ''}`);
+                }
+            });
+        }
+
+        function renderHelpdesk() {
+            const content = document.getElementById('dynamic-content');
+            content.innerHTML = `
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-8 max-w-4xl mx-auto">
+                <div class="text-center mb-8 border-b pb-6">
+                    <i class="fa-solid fa-headset text-5xl text-blue-500 mb-4"></i>
+                    <h2 class="text-2xl font-bold text-gray-800">Pusat Bantuan SIPENAS</h2>
+                    <p class="text-gray-500">Panduan Penggunaan dan Kontak Layanan Dinas Terpadu</p>
+                </div>
+                
+                <div class="mb-8">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4"><i class="fa-solid fa-book text-blue-500 mr-2"></i> Panduan Pengguna (User Manual)</h3>
+                    <div class="p-4 bg-blue-50 border border-blue-100 rounded flex justify-between items-center">
+                        <div>
+                            <p class="font-semibold text-blue-900">Buku Panduan Operator Sekolah</p>
+                            <p class="text-xs text-blue-700">Format: PDF Terkini</p>
+                        </div>
+                        ${appProfilDinas.file_panduan ? 
+                        `<a href="${appProfilDinas.file_panduan}" target="_blank" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm transition shadow flex items-center"><i class="fa-solid fa-download mr-2"></i> Unduh PDF</a>` 
+                        : `<button onclick="Swal.fire('Info', 'Dokumen panduan belum diunggah oleh Admin Dinas.', 'info')" class="px-4 py-2 bg-gray-400 text-white rounded cursor-not-allowed text-sm transition shadow flex items-center"><i class="fa-solid fa-download mr-2"></i> Belum Tersedia</button>`}
+                    </div>
+                </div>
+
+                <div class="mb-8">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4"><i class="fa-solid fa-circle-question text-green-500 mr-2"></i> Pertanyaan Umum (FAQ)</h3>
+                    <div class="space-y-3 text-sm">
+                        <details class="group bg-gray-50 border border-gray-200 rounded p-4 cursor-pointer">
+                            <summary class="font-semibold text-gray-800 list-none flex justify-between items-center">
+                                Mengapa saya tidak bisa menambah/mengubah data? Tombolnya hilang!
+                                <span class="transition group-open:rotate-180"><i class="fa-solid fa-chevron-down"></i></span>
+                            </summary>
+                            <p class="text-gray-600 mt-3 pt-3 border-t border-gray-200">Jika tombol Tambah/Edit hilang dan terdapat peringatan merah di atas tabel, itu berarti Admin Dinas telah <b>Menutup (Mengunci)</b> masa pendataan untuk periode berjalan. Hubungi Admin jika Anda memiliki revisi mendesak.</p>
+                        </details>
+                        <details class="group bg-gray-50 border border-gray-200 rounded p-4 cursor-pointer">
+                            <summary class="font-semibold text-gray-800 list-none flex justify-between items-center">
+                                Apa fungsi menu Sinkron Dapodik?
+                                <span class="transition group-open:rotate-180"><i class="fa-solid fa-chevron-down"></i></span>
+                            </summary>
+                            <p class="text-gray-600 mt-3 pt-3 border-t border-gray-200">Menu ini memudahkan Anda mengimpor format excel unduhan langsung dari Dapodik agar Anda tidak perlu mengetik satu-satu data GTK/Siswa lagi di SIPENAS.</p>
+                        </details>
+                        <details class="group bg-gray-50 border border-gray-200 rounded p-4 cursor-pointer">
+                            <summary class="font-semibold text-gray-800 list-none flex justify-between items-center">
+                                Apa itu menu Upload SPTJM?
+                                <span class="transition group-open:rotate-180"><i class="fa-solid fa-chevron-down"></i></span>
+                            </summary>
+                            <p class="text-gray-600 mt-3 pt-3 border-t border-gray-200">Surat Pernyataan Tanggung Jawab Mutlak (SPTJM) adalah dokumen legalitas bahwa data yang Anda entri sudah valid. Cetak formatnya, minta tanda tangan Kepala Sekolah + Materai, scan menjadi PDF, lalu unggah pada menu tersebut setiap semesternya.</p>
+                        </details>
+                    </div>
+                </div>
+                
+                <div>
+                    <h3 class="text-lg font-bold text-gray-800 mb-4"><i class="fa-solid fa-envelope text-orange-500 mr-2"></i> Kontak Layanan</h3>
+                    <p class="text-sm text-gray-600 mb-2">Jika Anda mengalami kendala teknis yang tidak ada di FAQ, hubungi Helpdesk kami:</p>
+                    <ul class="text-sm text-gray-800 space-y-2 font-medium">
+                        <li><i class="fa-brands fa-whatsapp text-green-500 w-5"></i> WA Center: ${appProfilDinas.wa_helpdesk || 'Belum diatur'} (Jam Kerja)</li>
+                        <li><i class="fa-solid fa-envelope text-red-500 w-5"></i> Email: ${appProfilDinas.email_helpdesk || 'Belum diatur'}</li>
+                    </ul>
+                </div>
+            </div>`;
+        }
+
+        async function openAccountSettings() {
+            const { value: formValues } = await Swal.fire({
+                title: 'Pengaturan Akun',
+                html: `
+                    <div class="mb-4 text-left">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Password Lama</label>
+                        <input id="swal-old-pass" type="password" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-dinas-500 focus:outline-none" placeholder="Masukkan password lama">
+                    </div>
+                    <div class="mb-4 text-left">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Password Baru</label>
+                        <input id="swal-new-pass" type="password" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-dinas-500 focus:outline-none" placeholder="Masukkan password baru">
+                    </div>
+                    <div class="text-left">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Konfirmasi Password Baru</label>
+                        <input id="swal-conf-pass" type="password" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-dinas-500 focus:outline-none" placeholder="Ulangi password baru">
+                    </div>
+                `,
+                focusConfirm: false,
+                showCancelButton: true,
+                confirmButtonColor: '#1e3a8a',
+                confirmButtonText: 'Simpan Perubahan',
+                cancelButtonText: 'Batal',
+                preConfirm: async () => {
+                    const oldPass = document.getElementById('swal-old-pass').value;
+                    const newPass = document.getElementById('swal-new-pass').value;
+                    const confPass = document.getElementById('swal-conf-pass').value;
+                    
+                    if (!oldPass || !newPass || !confPass) { Swal.showValidationMessage('Semua kolom wajib diisi!'); return false; }
+                    
+                    if (useMockData) {
+                        const u = mockDB.users.find(x => String(x.id) === String(currentUser.id));
+                        if (u && u.password !== oldPass) { Swal.showValidationMessage('Password lama salah!'); return false; }
+                    } else {
+                        const { data } = await supabaseClient.from('users').select('password').eq('id', currentUser.id).single();
+                        if (!data || data.password !== oldPass) {
+                            Swal.showValidationMessage('Password lama salah!'); return false;
+                        }
+                    }
+
+                    if (newPass.length < 6) { Swal.showValidationMessage('Password minimal 6 karakter!'); return false; }
+                    if (newPass === '123456') { Swal.showValidationMessage('Password baru tidak boleh 123456!'); return false; }
+                    if (newPass !== confPass) { Swal.showValidationMessage('Konfirmasi password tidak cocok!'); return false; }
+                    
+                    return { newPass: newPass };
+                }
+            });
+
+            if (formValues) {
+                if (useMockData) {
+                    const idx = mockDB.users.findIndex(x => String(x.id) === String(currentUser.id));
+                    if(idx > -1) mockDB.users[idx].password = formValues.newPass;
+                    
+                    logActivity('Merubah password akun');
+                    Swal.fire('Berhasil!', 'Password Anda berhasil diperbarui.', 'success');
+                } else {
+                    const { error } = await supabaseClient.from('users').update({ password: formValues.newPass }).eq('id', currentUser.id);
+                    if (error) {
+                        Swal.fire('Error!', error.message, 'error');
+                    } else {
+                        logActivity('Merubah password akun');
+                        Swal.fire('Berhasil!', 'Password Anda berhasil diperbarui.', 'success');
+                    }
+                }
+            }
+        }
+
+        async function resetUserPassword(userId) {
+            Swal.fire({
+                title: 'Reset Password User?',
+                text: "Password pengguna ini akan dikembalikan ke pengaturan bawaan (default) yaitu: 123456",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#f97316',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: 'Ya, Reset Password!',
+                cancelButtonText: 'Batal'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    if (useMockData) {
+                        const idx = mockDB.users.findIndex(x => String(x.id) === String(userId));
+                        if(idx > -1) mockDB.users[idx].password = '123456';
+                        logActivity(`Mereset password user ID ${userId}`);
+                        Swal.fire('Berhasil!', 'Password telah direset ke 123456.', 'success');
+                        loadPage(currentMenu);
+                    } else {
+                        const { error } = await supabaseClient.from('users').update({ password: '123456' }).eq('id', userId);
+                        if (error) {
+                            Swal.fire('Gagal!', error.message, 'error');
+                        } else {
+                            logActivity(`Mereset password user ID ${userId}`);
+                            Swal.fire('Berhasil!', 'Password telah direset ke 123456.', 'success');
+                            loadPage(currentMenu);
+                        }
+                    }
+                }
+            });
+        }
+
+        async function printSchoolProfile(schoolId) {
+            try {
+                Swal.fire({ title: 'Mempersiapkan Dokumen...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                const schoolData = currentSchoolsData.find(s => String(s.id) === String(schoolId));
+                if(!schoolData) throw new Error("Data Sekolah tidak ditemukan.");
+                const [gtk, siswa, gedung, meubeler, it] = await Promise.all([
+                    fetchTableData('gtk').then(res => res.filter(x => String(x.sekolah_id) === String(schoolId))),
+                    fetchTableData('siswa').then(res => res.filter(x => String(x.sekolah_id) === String(schoolId))),
+                    fetchTableData('gedung').then(res => res.filter(x => String(x.sekolah_id) === String(schoolId))),
+                    fetchTableData('meubeler').then(res => res.filter(x => String(x.sekolah_id) === String(schoolId))),
+                    fetchTableData('peralatan_it').then(res => res.filter(x => String(x.sekolah_id) === String(schoolId)))
+                ]);
+                const totalSiswa = siswa.reduce((acc, curr) => acc + Number(curr.total_siswa || 0), 0);
+                const totalGedung = gedung.reduce((acc, curr) => acc + Number(curr.jumlah || 0), 0);
+                
+                setPrintHeaderFooter(schoolId);
+
+                document.getElementById('cetak-judul').textContent = `PROFIL LENGKAP SEKOLAH (${appSettings.periode})`;
+                let html = `
+                    <table class="w-full mb-6 mt-4">
+                        <tr><td class="w-48 py-1 font-bold">Nama Sekolah</td><td>: ${schoolData.nama}</td></tr>
+                        <tr><td class="py-1 font-bold">Jenjang</td><td>: ${schoolData.jenjang || '-'}</td></tr>
+                        <tr><td class="py-1 font-bold">NPSN</td><td>: ${schoolData.npsn}</td></tr>
+                        <tr><td class="py-1 font-bold">Tahun Berdiri</td><td>: ${schoolData.tahun_berdiri || '-'}</td></tr>
+                        <tr><td class="py-1 font-bold">Kepala Sekolah</td><td>: ${schoolData.kepsek} (NIP: ${schoolData.nip || '-'} | HP: ${schoolData.no_hp_kepsek || '-'})</td></tr>
+                        <tr><td class="py-1 font-bold">Alamat</td><td>: ${schoolData.alamat || '-'}</td></tr>
+                        <tr><td class="py-1 font-bold">Status & Luas Lahan</td><td>: ${schoolData.status_lahan || '-'} / ${schoolData.luas_lahan || '-'} m2</td></tr>
+                    </table>
+                    <div class="mb-4">
+                        <h4 class="font-bold border-b-2 border-black mb-2">A. Rekapitulasi Data Siswa</h4>
+                        <table class="w-full border-collapse border border-black text-center">
+                            <thead><tr class="bg-gray-100"><th class="border border-black p-1">Kelas</th><th class="border border-black p-1">Laki-laki</th><th class="border border-black p-1">Perempuan</th><th class="border border-black p-1">Total</th></tr></thead>
+                            <tbody>
+                                ${siswa.length === 0 ? `<tr><td colspan="4" class="border border-black p-1 italic">Belum ada data</td></tr>` : siswa.map(s => `<tr><td class="border border-black p-1">${s.kelas}</td><td class="border border-black p-1">${s.total_l}</td><td class="border border-black p-1">${s.total_p}</td><td class="border border-black p-1">${s.total_siswa}</td></tr>`).join('')}
+                                <tr class="font-bold"><td colspan="3" class="border border-black p-1 text-right pr-2">Total Keseluruhan</td><td class="border border-black p-1">${totalSiswa}</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="mb-4">
+                        <h4 class="font-bold border-b-2 border-black mb-2">B. Rekapitulasi Pendidik & Tenaga Kependidikan (GTK)</h4>
+                        <p class="mb-2">Total GTK terdaftar: <b>${gtk.length}</b> orang.</p>
+                        <table class="w-full border-collapse border border-black text-left">
+                            <thead><tr class="bg-gray-100"><th class="border border-black p-1">Nama / NIP</th><th class="border border-black p-1">Pendidikan</th><th class="border border-black p-1">Status</th><th class="border border-black p-1">Mapel Diajarkan</th></tr></thead>
+                            <tbody>
+                                ${gtk.length === 0 ? `<tr><td colspan="4" class="border border-black p-1 text-center italic">Belum ada data</td></tr>` : gtk.map(g => `<tr><td class="border border-black p-1">${g.nama}<br><span class="text-xs">${g.nip || '-'}</span></td><td class="border border-black p-1">${g.pendidikan}</td><td class="border border-black p-1">${g.status}</td><td class="border border-black p-1">${g.mapel}</td></tr>`).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="mb-4">
+                        <h4 class="font-bold border-b-2 border-black mb-2">C. Rekapitulasi Sarana Gedung</h4>
+                        <p class="mb-2">Total Ruangan/Gedung: <b>${totalGedung}</b> unit.</p>
+                    </div>
+                    <p class="italic mt-8 text-xs text-gray-600">Dokumen ini dicetak otomatis dari sistem SIPENAS pada ${new Date().toLocaleString('id-ID')}.</p>
+                `;
+                document.getElementById('cetak-content').innerHTML = html;
+                Swal.close();
+                setTimeout(() => { window.print(); logActivity(`Mencetak Profil Sekolah ID: ${schoolId}`); }, 500);
+            } catch(e) { Swal.fire('Error', e.message, 'error'); }
+        }
+
+        async function printRekapKabupaten() {
+            try {
+                Swal.fire({ title: 'Mempersiapkan Rekap...', text: 'Mengkompilasi data seluruh sekolah...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                
+                const [schools, gtk, siswa, gedung] = await Promise.all([
+                    fetchTableData('schools'), fetchTableData('gtk'), fetchTableData('siswa'), fetchTableData('gedung')
+                ]);
+
+                let currentSchools = schools;
+                if(currentUser.role === 'admin_sd') currentSchools = schools.filter(s => s.jenjang === 'SD');
+                if(currentUser.role === 'admin_smp') currentSchools = schools.filter(s => s.jenjang === 'SMP');
+
+                const totalSiswa = siswa.reduce((acc, curr) => acc + Number(curr.total_siswa || 0), 0);
+                const totalSiswaL = siswa.reduce((acc, curr) => acc + Number(curr.total_l || 0), 0);
+                const totalSiswaP = siswa.reduce((acc, curr) => acc + Number(curr.total_p || 0), 0);
+                const totalGTK = gtk.length;
+                const gedungRusakBerat = gedung.filter(g => g.kondisi === 'Rusak Berat').reduce((acc, curr) => acc + Number(curr.jumlah || 0), 0);
+
+                let jenjangTitle = 'SEMUA JENJANG';
+                if (currentUser.role === 'admin_sd') jenjangTitle = 'JENJANG SD';
+                if (currentUser.role === 'admin_smp') jenjangTitle = 'JENJANG SMP';
+                
+                setPrintHeaderFooter(null);
+
+                document.getElementById('cetak-judul').textContent = `REKAPITULASI KABUPATEN (${appSettings.periode}) - ${jenjangTitle}`;
+                let html = `
+                    <div class="mb-6">
+                        <p class="mb-4 text-justify">Berikut adalah rangkuman data Sarana, Prasarana, dan SDM dari <b>${currentSchools.length} Sekolah</b> terdaftar di wilayah lingkup Anda berdasarkan pengisian sistem SIPENAS periode ${appSettings.periode}.</p>
+                        
+                        <h4 class="font-bold border-b-2 border-black mb-2">1. Ringkasan Kependudukan & SDM</h4>
+                        <table class="w-full mb-6">
+                            <tr><td class="w-64 py-1">Total Siswa Keseluruhan</td><td class="font-bold">: ${totalSiswa} Orang</td></tr>
+                            <tr><td class="py-1 pl-4">- Laki-Laki</td><td>: ${totalSiswaL} Orang</td></tr>
+                            <tr><td class="py-1 pl-4">- Perempuan</td><td>: ${totalSiswaP} Orang</td></tr>
+                            <tr><td class="py-1 mt-2">Total Guru & Tenaga Kependidikan</td><td class="font-bold">: ${totalGTK} Orang</td></tr>
+                        </table>
+
+                        <h4 class="font-bold border-b-2 border-black mb-2">2. Daftar Sekolah Terdaftar</h4>
+                        <table class="w-full border-collapse border border-black text-left text-sm mb-6">
+                            <thead><tr class="bg-gray-100"><th class="border border-black p-1">No</th><th class="border border-black p-1">NPSN</th><th class="border border-black p-1">Nama Sekolah</th><th class="border border-black p-1">Kepala Sekolah</th></tr></thead>
+                            <tbody>
+                                ${currentSchools.map((s, i) => `<tr><td class="border border-black p-1 text-center">${i+1}</td><td class="border border-black p-1 text-center">${s.npsn}</td><td class="border border-black p-1">${s.nama}</td><td class="border border-black p-1">${s.kepsek}</td></tr>`).join('')}
+                            </tbody>
+                        </table>
+
+                        <h4 class="font-bold border-b-2 border-black mb-2">3. Kondisi Sarana Kritis</h4>
+                        <p class="mb-2">Total ruangan/gedung yang dilaporkan dalam kondisi <b>Rusak Berat</b> di seluruh wilayah lingkup Anda: <span class="text-red-600 font-bold text-lg">${gedungRusakBerat} Unit</span>.</p>
+                    </div>
+                    <p class="italic mt-8 text-xs text-gray-600">Dokumen rekapitulasi ini sah dan dicetak otomatis dari sistem SIPENAS pada ${new Date().toLocaleString('id-ID')}.</p>
+                `;
+                document.getElementById('cetak-content').innerHTML = html;
+                Swal.close();
+                setTimeout(() => { window.print(); logActivity(`Mencetak Dokumen Rekapitulasi Tingkat Kabupaten`); }, 500);
+            } catch(e) { Swal.fire('Error', e.message, 'error'); }
+        }
     </script>
 </body>
 </html>
