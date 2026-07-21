@@ -43,6 +43,53 @@
             #app-screen { display: none !important; }
             * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         }
+
+        /* --- RESPONSIVE TABLE (CARD VIEW ON MOBILE) --- */
+        @media (max-width: 767px) {
+            .responsive-table thead {
+                display: none; /* Sembunyikan header tabel di mobile */
+            }
+            .responsive-table tbody tr {
+                display: block;
+                margin-bottom: 1rem;
+                background-color: #fff;
+                border: 1px solid #e5e7eb;
+                border-radius: 0.5rem;
+                box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+                padding: 0.5rem;
+            }
+            .responsive-table tbody td {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 0.5rem 0.75rem;
+                border-bottom: 1px solid #f3f4f6;
+                text-align: right; /* Konten rata kanan */
+            }
+            .responsive-table tbody td:last-child {
+                border-bottom: none;
+                justify-content: center; /* Tombol aksi di tengah */
+                padding-top: 1rem;
+            }
+            /* Label pseudo-element untuk menggantikan thead */
+            .responsive-table tbody td::before {
+                content: attr(data-label);
+                font-weight: 600;
+                color: #4b5563;
+                text-align: left;
+                padding-right: 1rem;
+                flex-shrink: 0;
+            }
+            /* Styling khusus untuk kolom tombol aksi agar tidak ada label kosong */
+            .responsive-table tbody td.action-cell::before {
+                content: none;
+            }
+            /* Pastikan teks panjang membungkus dengan baik */
+            .responsive-table tbody td span {
+                word-break: break-word;
+                text-align: right;
+            }
+        }
     </style>
 </head>
 <body class="bg-gray-100 text-gray-800 font-sans">
@@ -1074,7 +1121,7 @@
                     ` : ''}
                 </div>
                 <div class="overflow-x-auto">
-                    <table class="w-full text-left text-sm text-gray-600" id="data-table">
+                    <table class="w-full text-left text-sm text-gray-600 responsive-table" id="data-table">
                         <thead class="text-xs text-gray-700 uppercase bg-gray-100 border-b">
                             <tr>
                                 <th class="px-6 py-4">No</th>
@@ -1124,9 +1171,9 @@
             else {
                 html = paginatedData.map((row, index) => {
                     const actualIndex = start + index + 1; 
-                    let rowHtml = `<tr class="bg-white border-b hover:bg-gray-50"><td class="px-6 py-4 font-medium">${actualIndex}</td>`;
+                    let rowHtml = `<tr class="bg-white border-b hover:bg-gray-50"><td class="px-6 py-4 font-medium" data-label="No.">${actualIndex}</td>`;
                     
-                    if (isAdmin && currentMenu !== 'schools' && currentMenu !== 'users' && !isLogTable) rowHtml += `<td class="px-6 py-4 font-semibold text-dinas-800">${getSchoolName(row.sekolah_id)}</td>`;
+                    if (isAdmin && currentMenu !== 'schools' && currentMenu !== 'users' && !isLogTable) rowHtml += `<td class="px-6 py-4 font-semibold text-dinas-800" data-label="Asal Sekolah"><span>${getSchoolName(row.sekolah_id)}</span></td>`;
 
                     schema.fields.filter(f => f.type !== 'hidden').forEach(f => { 
                         let cellValue = row[f.name]; 
@@ -1146,17 +1193,19 @@
                         }
                         if (currentMenu === 'pesan' && f.name === 'sekolah_id' && !isAdmin) cellValue = getSchoolName(cellValue);
 
-                        rowHtml += `<td class="px-6 py-4">${cellValue || '-'}</td>`; 
+                        rowHtml += `<td class="px-6 py-4" data-label="${f.label}"><span>${cellValue || '-'}</span></td>`; 
                     });
 
                     if(!isLogTable) {
-                        rowHtml += `<td class="px-6 py-4 text-center no-print whitespace-nowrap">
-                            <button onclick="viewData('${row.id}')" class="text-green-600 hover:text-green-800 mx-1 bg-green-50 p-2 rounded" title="Lihat Detail"><i class="fa-solid fa-eye"></i></button>
-                            ${(canEdit || canEditStatusAdmin || isAdminMessage) && currentMenu !== 'pesan' ? `<button onclick="editData('${row.id}')" class="text-blue-600 hover:text-blue-800 mx-1 bg-blue-50 p-2 rounded" title="Edit Data"><i class="fa-solid fa-pen"></i></button>` : ''}
-                            ${canApprove ? `<button onclick="quickUpdateStatus('${row.id}', '${currentMenu === 'gedung' ? 'Valid' : 'Disetujui'}')" class="text-emerald-600 hover:text-emerald-800 mx-1 bg-emerald-100 p-2 rounded" title="Validasi/Setujui"><i class="fa-solid fa-check"></i></button><button onclick="quickUpdateStatus('${row.id}', 'Ditolak')" class="text-rose-600 hover:text-rose-800 mx-1 bg-rose-100 p-2 rounded" title="Tolak"><i class="fa-solid fa-xmark"></i></button>` : ''}
-                            ${(canDelete || isAdminMessage) ? `<button onclick="deleteData('${row.id}')" class="text-red-600 hover:text-red-800 mx-1 bg-red-50 p-2 rounded" title="Hapus Data"><i class="fa-solid fa-trash"></i></button>` : ''}
-                            ${isSuperAdmin && currentMenu === 'users' ? `<button onclick="resetUserPassword('${row.id}')" class="text-orange-500 hover:text-orange-700 mx-1 bg-orange-50 p-2 rounded" title="Reset Password ke 123456"><i class="fa-solid fa-key"></i></button>` : ''}
-                            ${isAdmin && currentMenu === 'schools' ? `<button onclick="printSchoolProfile('${row.id}')" class="text-gray-600 hover:text-gray-900 mx-1 bg-gray-100 p-2 rounded" title="Cetak Profil Lengkap (PDF)"><i class="fa-solid fa-file-pdf"></i></button>` : ''}
+                        rowHtml += `<td class="px-6 py-4 text-center no-print whitespace-nowrap action-cell">
+                            <div class="flex justify-end w-full gap-1">
+                                <button onclick="viewData('${row.id}')" class="text-green-600 hover:text-green-800 bg-green-50 p-2 rounded" title="Lihat Detail"><i class="fa-solid fa-eye"></i></button>
+                                ${(canEdit || canEditStatusAdmin || isAdminMessage) && currentMenu !== 'pesan' ? `<button onclick="editData('${row.id}')" class="text-blue-600 hover:text-blue-800 bg-blue-50 p-2 rounded" title="Edit Data"><i class="fa-solid fa-pen"></i></button>` : ''}
+                                ${canApprove ? `<button onclick="quickUpdateStatus('${row.id}', '${currentMenu === 'gedung' ? 'Valid' : 'Disetujui'}')" class="text-emerald-600 hover:text-emerald-800 bg-emerald-100 p-2 rounded" title="Validasi/Setujui"><i class="fa-solid fa-check"></i></button><button onclick="quickUpdateStatus('${row.id}', 'Ditolak')" class="text-rose-600 hover:text-rose-800 bg-rose-100 p-2 rounded" title="Tolak"><i class="fa-solid fa-xmark"></i></button>` : ''}
+                                ${(canDelete || isAdminMessage) ? `<button onclick="deleteData('${row.id}')" class="text-red-600 hover:text-red-800 bg-red-50 p-2 rounded" title="Hapus Data"><i class="fa-solid fa-trash"></i></button>` : ''}
+                                ${isSuperAdmin && currentMenu === 'users' ? `<button onclick="resetUserPassword('${row.id}')" class="text-orange-500 hover:text-orange-700 bg-orange-50 p-2 rounded" title="Reset Password ke 123456"><i class="fa-solid fa-key"></i></button>` : ''}
+                                ${isAdmin && currentMenu === 'schools' ? `<button onclick="printSchoolProfile('${row.id}')" class="text-gray-600 hover:text-gray-900 bg-gray-100 p-2 rounded" title="Cetak Profil Lengkap (PDF)"><i class="fa-solid fa-file-pdf"></i></button>` : ''}
+                            </div>
                         </td>`;
                     }
                     rowHtml += `</tr>`; return rowHtml;
@@ -1338,15 +1387,22 @@
             }
 
             for (const f of schema.fields) {
+                // Modifikasi: Jangan cek duplikat jika nilai inputan kosong atau hanya berisi strip (-)
                 if (f.unique && payload[f.name] && payload[f.name].trim() !== '' && payload[f.name].trim() !== '-') {
                     let isDuplicate = false; let existingId = null;
                     const hasPeriode = !['users', 'logs', 'system_settings', 'schools', 'announcements'].includes(schema.table);
 
                     if (useMockData) {
-                        const dupData = mockDB[schema.table].find(d => { let isMatch = d[f.name] === payload[f.name] && String(d.id) !== String(editingId); if (hasPeriode) isMatch = isMatch && d.periode === appSettings.periode; return isMatch; });
+                        const dupData = mockDB[schema.table].find(d => { 
+                            let isMatch = d[f.name] === payload[f.name] && String(d.id) !== String(editingId); 
+                            // Modifikasi: Jika tabel punya kolom periode, HANYA cek duplikat di periode yang sama
+                            if (hasPeriode) isMatch = isMatch && d.periode === appSettings.periode; 
+                            return isMatch; 
+                        });
                         if(dupData) { isDuplicate = true; existingId = dupData.id; }
                     } else {
                         let query = supabaseClient.from(schema.table).select('id').eq(f.name, payload[f.name]).neq('id', editingId || '0');
+                        // Modifikasi: Jika tabel punya kolom periode, HANYA cek duplikat di periode yang sama
                         if (hasPeriode) query = query.eq('periode', appSettings.periode);
                         const { data } = await query;
                         if (data && data.length > 0) { isDuplicate = true; existingId = data[0].id; }
