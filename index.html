@@ -1098,8 +1098,11 @@
                 } else {
                     // Logika Real Supabase Database (Jika aplikasi di-Online-kan)
                     if (!editingId) {
-                        if (!['users', 'logs', 'system_settings', 'schools', 'announcements'].includes(schema.table)) payload.periode = appSettings.periode;
-                        payload.sekolah_id = currentUser.sekolah_id || payload.sekolah_id || 1; 
+                        // JANGAN tambahkan kolom periode dan sekolah_id ke tabel sistem atau tabel master schools
+                        if (!['users', 'logs', 'system_settings', 'schools', 'announcements'].includes(schema.table)) {
+                            payload.periode = appSettings.periode;
+                            payload.sekolah_id = currentUser.sekolah_id || payload.sekolah_id || 1; 
+                        }
                     }
                     
                     if (editingId) {
