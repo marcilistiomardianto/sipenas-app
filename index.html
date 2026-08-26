@@ -824,22 +824,31 @@
             if (isAdmin && schemaId !== 'schools' && schemaId !== 'users' && schemaId !== 'logs') {
                 filterHtml += `<select id="filter-sekolah_id" onchange="applyFilters()" class="p-2 border rounded focus:ring-2 focus:ring-teal-500 text-sm"><option value="">Semua Sekolah</option>${currentSchoolsData.map(s => `<option value="${s.id}">${s.nama}</option>`).join('')}</select>`;
             }
-            if (schemaId === 'gtk' || schemaId === 'siswa' || schemaId === 'pip') {
-                schema.fields.forEach(f => {
-                    if (f.type === 'select') {
-                        let optsHTML = f.options.map(opt => `<option value="${opt}">${opt}</option>`).join('');
-                        if (f.isDynamicClass) {
-                           let allowedClasses = ['1','2','3','4','5','6','7','8','9'];
-                           let activeJenjang = '';
-                           if (currentUser.role === 'admin_sd') activeJenjang = 'SD'; else if (currentUser.role === 'admin_smp') activeJenjang = 'SMP';
-                           else if (currentUser.role === 'user') { const mySch = currentSchoolsData.find(s => String(s.id) === String(currentUser.sekolah_id)); if(mySch) activeJenjang = mySch.jenjang; }
-                           if (activeJenjang === 'SD') allowedClasses = ['1','2','3','4','5','6']; else if (activeJenjang === 'SMP') allowedClasses = ['7','8','9'];
-                           optsHTML = allowedClasses.map(opt => `<option value="${opt}">${opt}</option>`).join('');
-                        }
-                        filterHtml += `<select id="filter-${f.name}" onchange="applyFilters()" class="p-2 border rounded focus:ring-2 focus:ring-teal-500 text-sm"><option value="">Semua ${f.label}</option>${optsHTML}</select>`;
+            
+            // Generate dropdown filter untuk SEMUA menu secara otomatis (Tanpa merubah struktur tabel)
+            schema.fields.forEach(f => {
+                if (f.type === 'select') {
+                    let optsHTML = '';
+                    
+                    if (f.name === 'kategori' && kategoriMap[schemaId]) {
+                        optsHTML = Object.keys(kategoriMap[schemaId]).map(opt => `<option value="${opt}">${opt}</option>`).join('');
+                    } else if (f.isDynamicClass) {
+                        let allowedClasses = ['1','2','3','4','5','6','7','8','9'];
+                        let activeJenjang = '';
+                        if (currentUser.role === 'admin_sd') activeJenjang = 'SD'; else if (currentUser.role === 'admin_smp') activeJenjang = 'SMP';
+                        else if (currentUser.role === 'user') { const mySch = currentSchoolsData.find(s => String(s.id) === String(currentUser.sekolah_id)); if(mySch) activeJenjang = mySch.jenjang; }
+                        if (activeJenjang === 'SD') allowedClasses = ['1','2','3','4','5','6']; else if (activeJenjang === 'SMP') allowedClasses = ['7','8','9'];
+                        optsHTML = allowedClasses.map(opt => `<option value="${opt}">${opt}</option>`).join('');
+                    } else if (f.options && f.options.length > 0) {
+                        optsHTML = f.options.map(opt => `<option value="${opt}">${opt}</option>`).join('');
                     }
-                });
-            }
+
+                    // Tambahkan filter jika ada isinya
+                    if (optsHTML !== '') {
+                        filterHtml += `<select id="filter-${f.name}" onchange="applyFilters()" class="p-2 border rounded focus:ring-2 focus:ring-teal-500 text-sm max-w-[150px] truncate"><option value="">Semua ${f.label}</option>${optsHTML}</select>`;
+                    }
+                }
+            });
 
             let html = `
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
