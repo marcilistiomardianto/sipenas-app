@@ -36,6 +36,7 @@
         }
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
     <style>
         body { font-family: 'Inter', sans-serif; }
         ::-webkit-scrollbar { width: 8px; height: 8px; }
@@ -245,7 +246,7 @@
             return str.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
         }
 
-        // Kategori -> Subkategori Mapping
+        // Kategori -> Subkategori Mapping (Sesuai Permintaan Spesifik)
         const kategoriMap = {
             sarana_meubeler: {
                 "Meja": ["Meja siswa", "Meja guru", "Meja kepala sekolah", "Meja TU", "Meja laboratorium"],
@@ -416,7 +417,6 @@
                 ]
             },
             
-            // NEW PRASARANA STRUCTURE
             prasarana_lahan: {
                 title: 'Prasarana: Data Lahan', table: 'prasarana_lahan', icon: 'fa-map',
                 fields: [
@@ -485,7 +485,6 @@
                 ]
             },
 
-            // NEW SARANA STRUCTURE
             sarana_meubeler: { title: 'Sarana: Meubeler', table: 'sarana_meubeler', icon: 'fa-chair', fields: generateSaranaFields(false) },
             sarana_it: { title: 'Sarana: Peralatan IT', table: 'sarana_it', icon: 'fa-computer', fields: generateSaranaFields(false) },
             sarana_pembelajaran: { title: 'Sarana: Alat Pembelajaran', table: 'sarana_pembelajaran', icon: 'fa-microscope', fields: generateSaranaFields(false) },
@@ -545,13 +544,11 @@
             { id: 'gtk', label: 'Data GTK', icon: 'fa-users', roles: ['super_admin', 'admin_sd', 'admin_smp', 'user'] },
             { id: 'siswa', label: 'Data Siswa', icon: 'fa-children', roles: ['super_admin', 'admin_sd', 'admin_smp', 'user'] },
             
-            // NEW PRASARANA MENUS
             { id: 'prasarana_lahan', label: 'Prasarana: Lahan', icon: 'fa-map', roles: ['super_admin', 'admin_sd', 'admin_smp', 'user'] },
             { id: 'prasarana_bangunan', label: 'Prasarana: Bangunan', icon: 'fa-building', roles: ['super_admin', 'admin_sd', 'admin_smp', 'user'] },
             { id: 'prasarana_ruang', label: 'Prasarana: Ruang', icon: 'fa-door-open', roles: ['super_admin', 'admin_sd', 'admin_smp', 'user'] },
             { id: 'prasarana_fasilitas', label: 'Prasarana: Fasilitas', icon: 'fa-road', roles: ['super_admin', 'admin_sd', 'admin_smp', 'user'] },
 
-            // NEW SARANA MENUS
             { id: 'sarana_meubeler', label: 'Sarana: Meubeler', icon: 'fa-chair', roles: ['super_admin', 'admin_sd', 'admin_smp', 'user'] },
             { id: 'sarana_it', label: 'Sarana: Alat IT', icon: 'fa-computer', roles: ['super_admin', 'admin_sd', 'admin_smp', 'user'] },
             { id: 'sarana_pembelajaran', label: 'Sarana: Alat Belajar', icon: 'fa-microscope', roles: ['super_admin', 'admin_sd', 'admin_smp', 'user'] },
@@ -677,16 +674,35 @@
         }
 
         function renderSidebar() {
-            const menuContainer = document.getElementById('sidebar-menu'); menuContainer.innerHTML = '';
+            const menuContainer = document.getElementById('sidebar-menu'); 
+            menuContainer.innerHTML = '';
             menus.forEach(menu => {
                 if (menu.roles.includes(currentUser.role)) {
-                    if (menu.id === 'prasarana_lahan') menuContainer.innerHTML += `<div class="px-6 py-2 mt-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Pendataan Prasarana</div>`;
-                    if (menu.id === 'sarana_meubeler') menuContainer.innerHTML += `<div class="px-6 py-2 mt-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Pendataan Sarana</div>`;
-                    if (menu.id === 'pip') menuContainer.innerHTML += `<div class="px-6 py-2 mt-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Lainnya</div>`;
+                    if (menu.id === 'prasarana_lahan') {
+                        const divider = document.createElement('div');
+                        divider.className = "px-6 py-2 mt-4 text-xs font-bold text-gray-500 uppercase tracking-wider";
+                        divider.textContent = "Pendataan Prasarana";
+                        menuContainer.appendChild(divider);
+                    }
+                    if (menu.id === 'sarana_meubeler') {
+                        const divider = document.createElement('div');
+                        divider.className = "px-6 py-2 mt-4 text-xs font-bold text-gray-500 uppercase tracking-wider";
+                        divider.textContent = "Pendataan Sarana";
+                        menuContainer.appendChild(divider);
+                    }
+                    if (menu.id === 'pip') {
+                        const divider = document.createElement('div');
+                        divider.className = "px-6 py-2 mt-4 text-xs font-bold text-gray-500 uppercase tracking-wider";
+                        divider.textContent = "Lainnya";
+                        menuContainer.appendChild(divider);
+                    }
                     
                     const btn = document.createElement('button');
-                    btn.className = `w-full flex items-center px-6 py-3 text-left hover:bg-navy-900 transition menu-btn`; btn.id = `menu-${menu.id}`; btn.onclick = () => loadPage(menu.id);
-                    let label = menu.label; if (menu.id === 'schools' && currentUser.role === 'user') label = 'Profil Sekolah';
+                    btn.className = `w-full flex items-center px-6 py-3 text-left hover:bg-navy-900 transition menu-btn`; 
+                    btn.id = `menu-${menu.id}`; 
+                    btn.onclick = () => loadPage(menu.id);
+                    let label = menu.label; 
+                    if (menu.id === 'schools' && currentUser.role === 'user') label = 'Profil Sekolah';
                     btn.innerHTML = `<i class="fa-solid ${menu.icon} w-6 text-center mr-3 text-teal-400"></i> <span class="text-sm font-medium">${label}</span>`;
                     menuContainer.appendChild(btn);
                 }
@@ -696,16 +712,34 @@
         function loadPage(menuId) {
             currentMenu = menuId;
             document.querySelectorAll('.menu-btn').forEach(btn => btn.classList.remove('bg-navy-900', 'border-l-4', 'border-teal-400', 'text-white'));
-            const activeBtn = document.getElementById(`menu-${menuId}`); if(activeBtn) activeBtn.classList.add('bg-navy-900', 'border-l-4', 'border-teal-400', 'text-white');
-            document.getElementById('page-title').textContent = menus.find(m => m.id === menuId).label;
-            const content = document.getElementById('dynamic-content'); const loader = document.getElementById('content-loader');
-            content.innerHTML = ''; content.classList.add('hidden'); loader.classList.remove('hidden');
-            if (window.innerWidth < 768) { document.getElementById('sidebar').classList.add('-translate-x-full'); document.getElementById('mobile-overlay').classList.add('hidden'); }
+            const activeBtn = document.getElementById(`menu-${menuId}`); 
+            if(activeBtn) activeBtn.classList.add('bg-navy-900', 'border-l-4', 'border-teal-400', 'text-white');
+            
+            const menuConfig = menus.find(m => m.id === menuId);
+            document.getElementById('page-title').textContent = menuConfig ? menuConfig.label : 'Menu';
+            
+            const content = document.getElementById('dynamic-content'); 
+            const loader = document.getElementById('content-loader');
+            
+            content.innerHTML = ''; 
+            content.classList.add('hidden'); 
+            loader.classList.remove('hidden');
+            
+            if (window.innerWidth < 768) { 
+                document.getElementById('sidebar').classList.add('-translate-x-full'); 
+                document.getElementById('mobile-overlay').classList.add('hidden'); 
+            }
 
             setTimeout(() => {
-                loader.classList.add('hidden'); content.classList.remove('hidden');
-                if (menuId === 'dashboard') renderDashboard();
-                else if (schemas[menuId]) renderDataTable(menuId);
+                loader.classList.add('hidden'); 
+                content.classList.remove('hidden');
+                if (menuId === 'dashboard') {
+                    renderDashboard();
+                } else if (schemas[menuId]) {
+                    renderDataTable(menuId);
+                } else {
+                    content.innerHTML = `<div class="flex flex-col items-center justify-center h-64 text-gray-400"><i class="fa-solid fa-person-digging text-6xl mb-4 text-gray-300"></i><h2 class="text-xl font-bold text-gray-500">Modul Sedang Dikembangkan</h2><p class="text-sm mt-2">Halaman ${menuConfig ? menuConfig.label : ''} akan segera hadir dalam waktu dekat.</p></div>`;
+                }
             }, 500);
         }
 
@@ -783,13 +817,38 @@
             const schema = schemas[schemaId]; const content = document.getElementById('dynamic-content');
             currentTableData = await fetchTableData(schema.table); currentSchoolsData = await fetchTableData('schools'); 
             filteredTableData = [...currentTableData]; currentPage = 1; 
-            const isSuperAdmin = currentUser.role === 'super_admin'; const isAdmin = ['super_admin', 'admin_sd', 'admin_smp'].includes(currentUser.role);
+            const isAdmin = ['super_admin', 'admin_sd', 'admin_smp'].includes(currentUser.role);
             
+            // Advanced Filters Setup
+            let filterHtml = '';
+            if (isAdmin && schemaId !== 'schools' && schemaId !== 'users' && schemaId !== 'logs') {
+                filterHtml += `<select id="filter-sekolah_id" onchange="applyFilters()" class="p-2 border rounded focus:ring-2 focus:ring-teal-500 text-sm"><option value="">Semua Sekolah</option>${currentSchoolsData.map(s => `<option value="${s.id}">${s.nama}</option>`).join('')}</select>`;
+            }
+            if (schemaId === 'gtk' || schemaId === 'siswa') {
+                schema.fields.forEach(f => {
+                    if (f.type === 'select') {
+                        let optsHTML = f.options.map(opt => `<option value="${opt}">${opt}</option>`).join('');
+                        if (f.isDynamicClass) {
+                           let allowedClasses = ['1','2','3','4','5','6','7','8','9'];
+                           let activeJenjang = '';
+                           if (currentUser.role === 'admin_sd') activeJenjang = 'SD'; else if (currentUser.role === 'admin_smp') activeJenjang = 'SMP';
+                           else if (currentUser.role === 'user') { const mySch = currentSchoolsData.find(s => String(s.id) === String(currentUser.sekolah_id)); if(mySch) activeJenjang = mySch.jenjang; }
+                           if (activeJenjang === 'SD') allowedClasses = ['1','2','3','4','5','6']; else if (activeJenjang === 'SMP') allowedClasses = ['7','8','9'];
+                           optsHTML = allowedClasses.map(opt => `<option value="${opt}">${opt}</option>`).join('');
+                        }
+                        filterHtml += `<select id="filter-${f.name}" onchange="applyFilters()" class="p-2 border rounded focus:ring-2 focus:ring-teal-500 text-sm"><option value="">Semua ${f.label}</option>${optsHTML}</select>`;
+                    }
+                });
+            }
+
             let html = `
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                 <div class="p-4 border-b bg-gray-50 flex flex-col gap-4 no-print">
                     <div class="flex flex-col md:flex-row justify-between md:items-center gap-4">
-                        <div class="flex items-center gap-4 w-full md:w-auto"><div class="relative w-full md:w-64"><input type="text" id="table-search-input" oninput="applyFilters()" class="w-full pl-3 pr-3 py-2 border rounded focus:ring-2 focus:ring-teal-500 text-sm" placeholder="Cari data bebas..."></div></div>
+                        <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                            <div class="relative w-full md:w-64"><input type="text" id="table-search-input" oninput="applyFilters()" class="w-full pl-3 pr-3 py-2 border rounded focus:ring-2 focus:ring-teal-500 text-sm" placeholder="Cari data bebas..."></div>
+                            ${filterHtml}
+                        </div>
                         <div class="flex gap-2">
                             ${!isAdmin && currentTableData.length === 0 && schemaId !== 'schools' ? `<button onclick="copyPreviousData()" class="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded transition text-sm flex items-center shadow" title="Tarik data tahun lalu"><i class="fa-solid fa-clock-rotate-left mr-2"></i> Salin Data Sebelumnya</button>` : ''}
                             <button onclick="openModal(null, 'edit')" class="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded transition text-sm flex items-center shadow"><i class="fa-solid fa-plus mr-2"></i> Tambah Baru</button>
@@ -832,7 +891,12 @@
                 }).join('');
             }
             tbody.innerHTML = html;
-            pagContainer.innerHTML = `Menampilkan ${start + 1} sampai ${end} dari ${totalRows} entri. <button onclick="currentPage=1;renderTableBody()" class="text-blue-500">Reset Page</button>`;
+            
+            // Render Pagination Buttons
+            let pageBtns = ''; const totalPages = Math.ceil(totalRows / rowsPerPage);
+            for(let i=1; i<=totalPages; i++) { pageBtns += `<button onclick="currentPage=${i};renderTableBody()" class="px-2 py-1 mx-1 rounded ${currentPage === i ? 'bg-teal-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}">${i}</button>`; }
+            
+            pagContainer.innerHTML = `<div>Menampilkan ${totalRows === 0 ? 0 : start + 1} sampai ${end} dari ${totalRows} entri.</div><div>${pageBtns}</div>`;
         }
 
         function copyPreviousData() {
@@ -897,7 +961,7 @@
             
             // Map Injection for specific menus
             if (schema.fields.some(f => f.name === 'latitude')) {
-                formHtml += `<div class="col-span-1 md:col-span-2 mt-4"><label class="block text-sm font-medium text-gray-700 mb-1">Pilih Titik Lokasi pada Peta <span class="text-red-500">*</span></label><div id="map-container" class="w-full h-64 bg-gray-200 rounded-lg border-2 border-teal-500"></div><p class="text-xs text-gray-500 mt-1">Geser peta dan klik untuk menentukan koordinat lokasi (Latitude & Longitude otomatis terisi).</p></div>`;
+                formHtml += `<div class="col-span-1 md:col-span-2 mt-4"><label class="block text-sm font-medium text-gray-700 mb-1">Pilih Titik Lokasi pada Peta <span class="text-red-500">*</span></label><div id="map-container" class="w-full h-64 bg-gray-200 rounded-lg border-2 border-teal-500 relative z-10"></div><p class="text-xs text-gray-500 mt-1">Geser peta dan klik untuk menentukan koordinat lokasi (Latitude & Longitude otomatis terisi).</p></div>`;
             }
 
             formHtml += `</div>`; form.innerHTML = formHtml;
@@ -969,7 +1033,7 @@
                     const updateInputs = (e) => { const position = e.latlng || e.target.getLatLng(); document.getElementById('input-latitude').value = position.lat; document.getElementById('input-longitude').value = position.lng; };
                     marker.on('dragend', updateInputs);
                     map.on('click', function(e) { marker.setLatLng(e.latlng); updateInputs(e); });
-                }, 300);
+                }, 300); // delay to ensure modal is fully rendered
             }
         }
 
@@ -981,7 +1045,20 @@
             let payload = {}; 
             schema.fields.forEach(f => { const el = document.getElementById(`input-${f.name}`); if(f.type !== 'file' && el) payload[f.name] = sanitizeInput(el.value); });
             
+            // Inject Hidden System Triggers (History Logging for Schools)
+            if (currentMenu === 'schools') {
+                const kepsek = payload.kepsek; const nip = payload.nip;
+                if(kepsek && useMockData) { mockDB.pesan.push({ id: Date.now(), sekolah_id: currentUser.sekolah_id || 1, judul: 'SYS_HISTORY_IDENTITY', isi: JSON.stringify({ kepsek, nip, periode: appSettings.periode }), status: 'Read', waktu: new Date().toISOString() }); }
+            }
+
             if (useMockData) {
+                // Mock Duplicate Check specifically handling empty strings or '-' correctly
+                for (const f of schema.fields) {
+                    if (f.unique && payload[f.name].trim() !== '' && payload[f.name].trim() !== '-') {
+                        const isDup = mockDB[schema.table].some(item => String(item[f.name]) === String(payload[f.name]) && String(item.id) !== String(editingId) && (item.periode ? item.periode === appSettings.periode : true));
+                        if (isDup) { Swal.fire('Validasi Gagal!', `${f.label} "${payload[f.name]}" sudah terdaftar di sistem. Tidak boleh ada data duplikat!`, 'error'); return; }
+                    }
+                }
                 if (editingId) { const idx = mockDB[schema.table].findIndex(x => String(x.id) === String(editingId)); mockDB[schema.table][idx] = { ...mockDB[schema.table][idx], ...payload }; } 
                 else { payload.id = Date.now(); payload.periode = appSettings.periode; payload.sekolah_id = currentUser.sekolah_id || 1; mockDB[schema.table].push(payload); }
                 closeModal(); loadPage(currentMenu); Swal.fire('Berhasil!', 'Data tersimpan.', 'success');
