@@ -1046,7 +1046,7 @@
         async function saveData() {
             const schema = schemas[currentMenu]; const formEl = document.getElementById('crud-form');
             if (!formEl.checkValidity()) { formEl.reportValidity(); return; }
-            else if(f.type === 'date') val = val === '' ? null : val;
+            
             const btnSave = document.getElementById('btn-save-data');
             const originalBtnText = btnSave.innerHTML;
             btnSave.disabled = true; btnSave.innerHTML = '<div class="loader w-4 h-4 border-2 border-t-white mr-2"></div> Menyimpan...';
@@ -1056,7 +1056,12 @@
                 schema.fields.forEach(f => { 
                     const el = document.getElementById(`input-${f.name}`); 
                     if(f.type === 'file' && el && el.files.length > 0) { payload[f.name] = el.files[0].name; } 
-                    else if(f.type !== 'file' && el) { let val = sanitizeInput(el.value); if(f.type === 'number') val = val === '' ? null : Number(val); payload[f.name] = val; } 
+                    else if(f.type !== 'file' && el) { 
+                        let val = sanitizeInput(el.value); 
+                        if(f.type === 'number') val = val === '' ? null : Number(val); 
+                        else if(f.type === 'date') val = val === '' ? null : val;
+                        payload[f.name] = val; 
+                    } 
                 });
                 
                 if (currentMenu === 'schools') {
