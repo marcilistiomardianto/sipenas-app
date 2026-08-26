@@ -1046,7 +1046,7 @@
         async function saveData() {
             const schema = schemas[currentMenu]; const formEl = document.getElementById('crud-form');
             if (!formEl.checkValidity()) { formEl.reportValidity(); return; }
-            
+            else if(f.type === 'date') val = val === '' ? null : val;
             const btnSave = document.getElementById('btn-save-data');
             const originalBtnText = btnSave.innerHTML;
             btnSave.disabled = true; btnSave.innerHTML = '<div class="loader w-4 h-4 border-2 border-t-white mr-2"></div> Menyimpan...';
