@@ -902,7 +902,7 @@
                             <button onclick="exportToExcel()" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded transition text-sm flex items-center shadow" title="Ekspor ke Excel"><i class="fa-solid fa-file-excel md:mr-2"></i> <span class="hidden md:inline">Excel</span></button>
                             <button onclick="cetakData()" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded transition text-sm flex items-center shadow" title="Cetak Data"><i class="fa-solid fa-print md:mr-2"></i> <span class="hidden md:inline">Cetak</span></button>
                             ${!isAdmin && currentTableData.length === 0 && schemaId !== 'schools' ? `<button onclick="copyPreviousData()" class="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded transition text-sm flex items-center shadow" title="Tarik data tahun lalu"><i class="fa-solid fa-clock-rotate-left mr-2"></i> Salin Data Sebelumnya</button>` : ''}
-                            <button onclick="openModal(null, 'edit')" class="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded transition text-sm flex items-center shadow"><i class="fa-solid fa-plus md:mr-2"></i> <span class="hidden md:inline">Tambah Baru</span></button>
+                            ${!(currentUser.role === 'user' && schemaId === 'schools' && currentTableData.length > 0) ? `<button onclick="openModal(null, 'edit')" class="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded transition text-sm flex items-center shadow"><i class="fa-solid fa-plus md:mr-2"></i> <span class="hidden md:inline">Tambah Baru</span></button>` : ''}
                         </div>
                     </div>
                 </div>
