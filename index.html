@@ -1135,6 +1135,64 @@
                 }
             });
         }
+
+        function exportToExcel() {
+            if (filteredTableData.length === 0) { Swal.fire('Info', 'Tidak ada data untuk diekspor.', 'info'); return; }
+            const schema = schemas[currentMenu]; const isAdmin = ['super_admin', 'admin_sd', 'admin_smp'].includes(currentUser.role);
+            const getSchoolName = (id) => { const s = currentSchoolsData.find(item => String(item.id) === String(id)); return s ? s.nama : 'Unknown'; };
+
+            const exportData = filteredTableData.map((row, index) => {
+                let rowData = { 'No': index + 1 };
+                if (isAdmin && currentMenu !== 'schools' && currentMenu !== 'users' && currentMenu !== 'logs') { rowData['Asal Sekolah'] = getSchoolName(row.sekolah_id); }
+                schema.fields.filter(f => f.type !== 'hidden').forEach(f => {
+                    let val = row[f.name]; if (f.isCurrency && val) val = 'Rp ' + Number(val).toLocaleString('id-ID');
+                    rowData[f.label] = val || '-';
+                });
+                return rowData;
+            });
+
+            const ws = XLSX.utils.json_to_sheet(exportData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Data_SIPENAS");
+            XLSX.writeFile(wb, `Laporan_${schema.title.replace(/\s+/g, '_')}_${new Date().getTime()}.xlsx`);
+        }
+
+        function cetakData() {
+            if (filteredTableData.length === 0) { Swal.fire('Info', 'Tidak ada data untuk dicetak.', 'info'); return; }
+            const schema = schemas[currentMenu]; const isAdmin = ['super_admin', 'admin_sd', 'admin_smp'].includes(currentUser.role);
+            const getSchoolName = (id) => { const s = currentSchoolsData.find(item => String(item.id) === String(id)); return s ? s.nama : 'Unknown'; };
+
+            document.getElementById('cetak-judul').textContent = `LAPORAN DATA ${schema.title.toUpperCase()}`;
+            if(appProfilDinas) {
+                document.getElementById('kop-pemda').textContent = appProfilDinas.nama_pemda || 'Pemerintah Daerah';
+                document.getElementById('kop-dinas').textContent = appProfilDinas.nama_dinas || 'Dinas Pendidikan';
+                document.getElementById('kop-alamat').textContent = appProfilDinas.alamat || '';
+                document.getElementById('kop-kontak').textContent = appProfilDinas.kontak || '';
+                document.getElementById('ttd-nama').textContent = appProfilDinas.nama_kadis || '';
+                document.getElementById('ttd-pangkat').textContent = appProfilDinas.pangkat_kadis || '';
+                document.getElementById('ttd-nip').textContent = appProfilDinas.nip_kadis || '';
+            }
+
+            let html = `<table class="w-full text-left text-xs border-collapse border border-black mb-4"><thead><tr class="bg-gray-200">
+                <th class="border border-black p-2 text-center">No</th>
+                ${isAdmin && currentMenu !== 'schools' && currentMenu !== 'users' ? `<th class="border border-black p-2">Asal Sekolah</th>` : ''}
+                ${schema.fields.filter(f => f.type !== 'hidden').map(f => `<th class="border border-black p-2">${f.label}</th>`).join('')}
+            </tr></thead><tbody>`;
+
+            filteredTableData.forEach((row, index) => {
+                html += `<tr><td class="border border-black p-2 text-center">${index + 1}</td>`;
+                if (isAdmin && currentMenu !== 'schools' && currentMenu !== 'users') { html += `<td class="border border-black p-2">${getSchoolName(row.sekolah_id)}</td>`; }
+                schema.fields.filter(f => f.type !== 'hidden').forEach(f => {
+                    let val = row[f.name]; if (f.isCurrency && val) val = 'Rp ' + Number(val).toLocaleString('id-ID');
+                    html += `<td class="border border-black p-2">${val || '-'}</td>`;
+                });
+                html += `</tr>`;
+            });
+            html += `</tbody></table>`;
+            
+            document.getElementById('cetak-content').innerHTML = html;
+            window.print();
+        }
     </script>
 </body>
 </html>
