@@ -262,7 +262,6 @@
         let currentTableData = []; let filteredTableData = []; let currentSchoolsData = []; 
         let currentPage = 1; let rowsPerPage = 10; let editingId = null; let currentModalMode = 'edit';
         let appSettings = { periode: '2026/2027 Ganjil', is_locked: false }; 
-        let idleTime = 0; const IDLE_LIMIT = 30;
 
         let appProfilDinas = {
             nama_pemda: 'Pemerintah Kabupaten Manggarai Barat', nama_dinas: 'Dinas Pendidikan Kepemudaan dan Olahraga', alamat: 'Jln. Sernaru No.3, Labuan Bajo', kontak: 'Email: pko@manggaraibaratkab.go.id | Website: https://pko.manggaraibaratkab.go.id', nama_kadis: 'Agustinus Gias, S.Pd', pangkat_kadis: 'Pembina Utama Muda, IV/c', nip_kadis: 'NIP. 19690813 199003 1 006', wa_helpdesk: '0812 3456 7890', email_helpdesk: 'sipras@manggaraibaratkab.go.id', file_panduan: '', logo_dinas: ''
@@ -551,6 +550,22 @@
             } catch (e) { localStorage.removeItem('sipas_user'); }
         }
 
+        async function logActivity(aksi) {
+            if (!currentUser) return;
+            const waktu = new Date().toLocaleString('id-ID');
+            const userDisplay = currentUser.nama_sekolah || currentUser.username;
+            const logData = { waktu: waktu, user: userDisplay, aksi: aksi };
+            
+            if (useMockData) {
+                logData.id = Date.now();
+                mockDB.logs.push(logData);
+            } else {
+                try {
+                    if (supabaseClient) await supabaseClient.from('logs').insert([logData]);
+                } catch (err) { console.error('Failed to log activity:', err); }
+            }
+        }
+
         async function handleLogin(e) {
             e.preventDefault();
             const u = sanitizeInput(document.getElementById('username').value.trim()); const p = document.getElementById('password').value; 
@@ -745,42 +760,30 @@
                 }
                 return Array.isArray(data) ? [...data] : [];
             } else {
-                // Real Supabase Fetch Logic
                 try {
                     let query = supabaseClient.from(tableName).select('*');
                     const hasPeriode = !['users', 'logs', 'system_settings', 'schools', 'announcements'].includes(tableName);
-                    
                     if (hasPeriode) query = query.eq('periode', appSettings.periode);
 
                     if (currentUser.role === 'user' && tableName !== 'users' && tableName !== 'logs' && tableName !== 'system_settings' && tableName !== 'announcements') {
                         if (!currentUser.sekolah_id) return [];
-                        if (tableName === 'schools') {
-                            query = query.eq('id', currentUser.sekolah_id);
-                        } else {
-                            query = query.eq('sekolah_id', currentUser.sekolah_id);
-                        }
-                    } else if (['admin_sd', 'admin_smp'].includes(currentUser.role) && tableName !== 'users' && tableName !== 'logs' && tableName !== 'system_settings' && tableName !== 'announcements') {
+                        if (tableName === 'schools') query = query.eq('id', currentUser.sekolah_id);
+                        else query = query.eq('sekolah_id', currentUser.sekolah_id);
+                    } 
+                    else if (['admin_sd', 'admin_smp'].includes(currentUser.role) && tableName !== 'users' && tableName !== 'logs' && tableName !== 'system_settings' && tableName !== 'announcements') {
                         const targetJenjang = currentUser.role === 'admin_sd' ? 'SD' : 'SMP';
-                        if (tableName === 'schools') {
-                            query = query.eq('jenjang', targetJenjang);
-                        } else {
+                        if (tableName === 'schools') query = query.eq('jenjang', targetJenjang);
+                        else {
                             const { data: schoolsData } = await supabaseClient.from('schools').select('id').eq('jenjang', targetJenjang);
-                            if (schoolsData && schoolsData.length > 0) {
-                                const allowedIds = schoolsData.map(s => s.id);
-                                query = query.in('sekolah_id', allowedIds);
-                            } else {
-                                return [];
-                            }
+                            if (schoolsData && schoolsData.length > 0) { const allowedIds = schoolsData.map(s => s.id); query = query.in('sekolah_id', allowedIds); } 
+                            else return [];
                         }
                     }
                     
                     const { data, error } = await query;
                     if (error) throw error;
                     return data || [];
-                } catch (err) {
-                    console.error("Error fetching data:", err);
-                    return [];
-                }
+                } catch (err) { console.error("Error fetching data:", err); return []; }
             }
         }
 
