@@ -196,7 +196,6 @@
             </div>
             <nav class="flex-1 overflow-y-auto py-2 custom-scrollbar" id="sidebar-menu"></nav>
             <div class="p-4 border-t border-gray-800">
-                <button onclick="openAccountSettings()" class="flex items-center text-gray-300 hover:text-white w-full transition mb-4"><i class="fa-solid fa-user-gear w-6"></i><span>Pengaturan Akun</span></button>
                 <button onclick="handleLogout()" class="flex items-center text-red-400 hover:text-red-300 w-full transition"><i class="fa-solid fa-right-from-bracket w-6"></i><span>Keluar</span></button>
             </div>
         </aside>
@@ -294,7 +293,8 @@
             pip: [{ id: 1, sekolah_id: 1, periode: '2026/2027 Ganjil', kelas: '7', tahun: '2025', usulan: 45, penerima: 40, selisih: 5, nominal_cair: 30000000 }],
             bos: [{ id: 1, sekolah_id: 1, periode: '2026/2027 Ganjil', jenis_bos: 'BOS Reguler', tahun: 2026, alokasi_total: 100000000, tahap1_jumlah: 55000000, tahap2_jumlah: 45000000, penggunaan_dana: 50000000, sisa_dana: 50000000 }],
             akreditasi: [{ id: 1, sekolah_id: 1, periode: '2026/2027 Ganjil', tahun: 2024, nilai: 92, peringkat: 'A', no_sk: '123/BAN-SM/SK/2024', tanggal_sk: '2024-10-15' }],
-            sptjm: [], pesan: [], announcements: [], logs: [], bantuan_tiket: []
+            sptjm: [], pesan: [], announcements: [], logs: [], 
+            bantuan_tiket: [ { id: 1, sekolah_id: 1, judul: 'Gagal Simpan Meubeler', kategori: 'Data Sarpras / Prasarana', pesan: 'Mohon dibantu, saya gagal input kursi siswa', status: 'Menunggu', tanggapan: '', waktu: '26/08/2026, 10:00:00' } ]
         };
 
         const generateSaranaFields = (isBuku = false) => {
@@ -622,8 +622,8 @@
             if(isAuto === true) {
                 Swal.fire({
                     icon: 'warning',
-                    title: 'Sesi Berakhir',
-                    text: 'Sesi Anda telah berakhir karena tidak ada aktivitas selama 30 menit. Silakan login kembali.',
+                    title: 'Sesi Habis',
+                    text: 'Anda telah dikeluarkan secara otomatis karena tidak ada aktivitas selama 30 menit.',
                     confirmButtonColor: '#0d9488',
                     allowOutsideClick: false
                 }).then(() => { window.location.reload(); });
@@ -635,8 +635,13 @@
 
         let inactivityTime = function () {
             let time;
-            const timeoutMillis = 30 * 60 * 1000; 
-            window.onload = resetTimer; document.onmousemove = resetTimer; document.onkeydown = resetTimer; document.onclick = resetTimer; document.onscroll = resetTimer; document.addEventListener('touchstart', resetTimer);
+            const timeoutMillis = 30 * 60 * 1000; // 30 minutes
+            window.onload = resetTimer; 
+            document.onmousemove = resetTimer; 
+            document.onkeydown = resetTimer; 
+            document.onclick = resetTimer; 
+            document.onscroll = resetTimer; 
+            document.addEventListener('touchstart', resetTimer);
             function doLogout() { handleLogout(true); }
             function resetTimer() { clearTimeout(time); time = setTimeout(doLogout, timeoutMillis); }
         };
@@ -658,7 +663,7 @@
         function updateHeaderStatus() {
             const statusEl = document.getElementById('header-system-status');
             if (statusEl && appSettings) {
-                if (appSettings.is_locked) statusEl.innerHTML = `<span class="bg-red-100 text-red-800 text-xs font-bold px-3 py-1.5 rounded border border-red-200">Terkunci (${appSettings.periode})</span>`;
+                if (appSettings.is_locked) statusEl.innerHTML = `<span class="bg-red-100 text-red-800 text-xs font-bold px-3 py-1.5 rounded border border-red-200">Sistem Dikunci (${appSettings.periode})</span>`;
                 else statusEl.innerHTML = `<span class="bg-teal-100 text-teal-800 text-xs font-bold px-3 py-1.5 rounded border border-teal-200">Terbuka (${appSettings.periode})</span>`;
             }
         }
@@ -676,7 +681,9 @@
                 isProfileCompleted = mySchool.length > 0;
             }
 
-            renderSidebar(); loadPage('dashboard'); setupAutoLogout();
+            renderSidebar(); 
+            loadPage('dashboard'); 
+            setupAutoLogout();
         }
 
         function renderSidebar() {
@@ -741,13 +748,12 @@
             }
 
             try {
-                if (menuId === 'dashboard') {
-                    await renderDashboard();
-                } else if (menuId === 'peta') {
-                    await renderPetaSebaran();
-                } else if (schemas[menuId]) {
-                    await renderDataTable(menuId);
-                } else {
+                if (menuId === 'dashboard') { await renderDashboard(); } 
+                else if (menuId === 'peta') { await renderPetaSebaran(); } 
+                else if (menuId === 'profil_dinas') { await renderProfilDinas(); }
+                else if (menuId === 'pengaturan') { await renderPengaturanSistem(); }
+                else if (schemas[menuId]) { await renderDataTable(menuId); } 
+                else {
                     content.innerHTML = `
                     <div class="flex flex-col items-center justify-center h-full min-h-[400px] text-gray-400 mt-10">
                         <div class="bg-gray-100 p-8 rounded-full mb-6 shadow-inner">
@@ -814,6 +820,117 @@
             }, 300);
         }
 
+        async function renderProfilDinas() {
+            const content = document.getElementById('dynamic-content');
+            content.innerHTML = `
+            <div class="bg-white rounded-xl shadow-sm border p-6 max-w-4xl mx-auto">
+                <h2 class="text-xl font-bold text-navy-900 mb-6 border-b pb-3"><i class="fa-solid fa-building-flag mr-2 text-teal-600"></i> Pengaturan Profil Dinas & Kop Surat</h2>
+                <form id="form-profil-dinas" onsubmit="saveProfilDinas(event)">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="space-y-4">
+                            <h3 class="font-semibold text-gray-700 bg-gray-50 p-2 rounded">Identitas Instansi (Kop Surat)</h3>
+                            <div><label class="block text-sm font-medium text-gray-700 mb-1">Pemerintah Daerah</label><input type="text" id="pd_pemda" value="${appProfilDinas.nama_pemda || ''}" class="w-full p-2 border rounded focus:ring-2 focus:ring-teal-500" required></div>
+                            <div><label class="block text-sm font-medium text-gray-700 mb-1">Nama Dinas</label><input type="text" id="pd_dinas" value="${appProfilDinas.nama_dinas || ''}" class="w-full p-2 border rounded focus:ring-2 focus:ring-teal-500" required></div>
+                            <div><label class="block text-sm font-medium text-gray-700 mb-1">Alamat Lengkap</label><textarea id="pd_alamat" rows="2" class="w-full p-2 border rounded focus:ring-2 focus:ring-teal-500" required>${appProfilDinas.alamat || ''}</textarea></div>
+                            <div><label class="block text-sm font-medium text-gray-700 mb-1">Kontak Kop (Email/Web/Telepon)</label><input type="text" id="pd_kontak" value="${appProfilDinas.kontak || ''}" class="w-full p-2 border rounded focus:ring-2 focus:ring-teal-500"></div>
+                        </div>
+                        <div class="space-y-4">
+                            <h3 class="font-semibold text-gray-700 bg-gray-50 p-2 rounded">Penandatangan Laporan & Helpdesk</h3>
+                            <div><label class="block text-sm font-medium text-gray-700 mb-1">Nama Kepala Dinas (Penandatangan)</label><input type="text" id="pd_kadis" value="${appProfilDinas.nama_kadis || ''}" class="w-full p-2 border rounded focus:ring-2 focus:ring-teal-500" required></div>
+                            <div><label class="block text-sm font-medium text-gray-700 mb-1">Pangkat / Golongan</label><input type="text" id="pd_pangkat" value="${appProfilDinas.pangkat_kadis || ''}" class="w-full p-2 border rounded focus:ring-2 focus:ring-teal-500"></div>
+                            <div><label class="block text-sm font-medium text-gray-700 mb-1">NIP Kepala Dinas</label><input type="text" id="pd_nip" value="${appProfilDinas.nip_kadis || ''}" class="w-full p-2 border rounded focus:ring-2 focus:ring-teal-500"></div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div><label class="block text-sm font-medium text-gray-700 mb-1">WA Helpdesk</label><input type="text" id="pd_wa" value="${appProfilDinas.wa_helpdesk || ''}" class="w-full p-2 border rounded focus:ring-2 focus:ring-teal-500"></div>
+                                <div><label class="block text-sm font-medium text-gray-700 mb-1">Email Helpdesk</label><input type="text" id="pd_email" value="${appProfilDinas.email_helpdesk || ''}" class="w-full p-2 border rounded focus:ring-2 focus:ring-teal-500"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-8 pt-4 border-t flex justify-end">
+                        <button type="submit" id="btn-save-profil" class="px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-lg transition shadow-md flex items-center"><i class="fa-solid fa-save mr-2"></i> Simpan Profil</button>
+                    </div>
+                </form>
+            </div>`;
+        }
+
+        async function saveProfilDinas(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btn-save-profil');
+            btn.innerHTML = '<div class="loader w-4 h-4 border-2 border-t-white mr-2"></div> Menyimpan...'; btn.disabled = true;
+            
+            const payload = {
+                nama_pemda: document.getElementById('pd_pemda').value,
+                nama_dinas: document.getElementById('pd_dinas').value,
+                alamat: document.getElementById('pd_alamat').value,
+                kontak: document.getElementById('pd_kontak').value,
+                nama_kadis: document.getElementById('pd_kadis').value,
+                pangkat_kadis: document.getElementById('pd_pangkat').value,
+                nip_kadis: document.getElementById('pd_nip').value,
+                wa_helpdesk: document.getElementById('pd_wa').value,
+                email_helpdesk: document.getElementById('pd_email').value
+            };
+
+            try {
+                if(useMockData) { mockDB.profil_dinas = { ...mockDB.profil_dinas, ...payload }; } 
+                else { await supabaseClient.from('profil_dinas').update(payload).eq('id', 1); }
+                appProfilDinas = { ...appProfilDinas, ...payload }; applyProfilDinasToDOM();
+                logActivity('Memperbarui Profil Dinas & Kop Surat'); Swal.fire('Berhasil!', 'Profil Dinas berhasil diperbarui.', 'success');
+            } catch(err) { Swal.fire('Gagal!', 'Terjadi kesalahan sistem.', 'error'); } 
+            finally { btn.innerHTML = '<i class="fa-solid fa-save mr-2"></i> Simpan Profil'; btn.disabled = false; }
+        }
+
+        async function renderPengaturanSistem() {
+            const content = document.getElementById('dynamic-content');
+            content.innerHTML = `
+            <div class="bg-white rounded-xl shadow-sm border p-6 max-w-xl mx-auto mt-6">
+                <h2 class="text-xl font-bold text-navy-900 mb-6 border-b pb-3"><i class="fa-solid fa-sliders mr-2 text-teal-600"></i> Pengaturan Sistem Global</h2>
+                <form id="form-pengaturan" onsubmit="savePengaturanSistem(event)">
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Tahun Ajaran / Periode Aktif</label>
+                        <input type="text" id="set_periode" value="${appSettings.periode || ''}" class="w-full p-2 border rounded focus:ring-2 focus:ring-teal-500" required placeholder="Contoh: 2026/2027 Ganjil">
+                        <p class="text-xs text-gray-500 mt-1">Periode ini akan menjadi identitas arsip utama untuk seluruh data yang disubmit sekolah.</p>
+                    </div>
+                    <div class="mb-6 bg-red-50 p-4 rounded-lg border border-red-100">
+                        <label class="flex items-center cursor-pointer">
+                            <div class="relative">
+                                <input type="checkbox" id="set_locked" class="sr-only" ${appSettings.is_locked ? 'checked' : ''}>
+                                <div class="block bg-gray-300 w-12 h-7 rounded-full transition-colors duration-300 ${appSettings.is_locked ? 'bg-red-500' : 'bg-gray-300'}"></div>
+                                <div class="dot absolute left-1 top-1 bg-white w-5 h-5 rounded-full transition-transform duration-300 ${appSettings.is_locked ? 'transform translate-x-5' : ''}"></div>
+                            </div>
+                            <div class="ml-4 font-bold text-red-900">Kunci Sistem (Global Lockdown)</div>
+                        </label>
+                        <p class="text-sm text-red-700 mt-2 ml-12">Jika diaktifkan, operator sekolah hanya bisa melihat data dan tidak dapat merubah (Menambah, Edit, Hapus) formulir apapun.</p>
+                    </div>
+                    <div class="flex justify-end pt-4 border-t">
+                        <button type="submit" id="btn-save-pengaturan" class="px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-lg transition shadow-md flex items-center"><i class="fa-solid fa-save mr-2"></i> Terapkan Pengaturan</button>
+                    </div>
+                </form>
+            </div>`;
+
+            setTimeout(() => {
+                const cb = document.getElementById('set_locked'); const bg = cb.nextElementSibling; const dot = bg.nextElementSibling;
+                cb.addEventListener('change', () => {
+                    if(cb.checked) { bg.classList.replace('bg-gray-300', 'bg-red-500'); dot.classList.add('transform', 'translate-x-5'); } 
+                    else { bg.classList.replace('bg-red-500', 'bg-gray-300'); dot.classList.remove('transform', 'translate-x-5'); }
+                });
+            }, 50);
+        }
+
+        async function savePengaturanSistem(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btn-save-pengaturan');
+            btn.innerHTML = '<div class="loader w-4 h-4 border-2 border-t-white mr-2"></div> Menyimpan...'; btn.disabled = true;
+            
+            const payload = { periode: document.getElementById('set_periode').value, is_locked: document.getElementById('set_locked').checked };
+
+            try {
+                if(useMockData) { mockDB.system_settings = { ...mockDB.system_settings, ...payload }; } 
+                else { await supabaseClient.from('system_settings').update(payload).eq('id', 1); }
+                appSettings = { ...appSettings, ...payload }; updateHeaderStatus(); logActivity('Mengubah pengaturan sistem (Periode/Kunci)');
+                Swal.fire('Berhasil!', 'Pengaturan sistem global berhasil diterapkan.', 'success');
+            } catch(err) { Swal.fire('Gagal!', 'Terjadi kesalahan sistem.', 'error'); } 
+            finally { btn.innerHTML = '<i class="fa-solid fa-save mr-2"></i> Terapkan Pengaturan'; btn.disabled = false; }
+        }
+
         async function renderDashboard() {
             const content = document.getElementById('dynamic-content');
             let welcomeHtml = ''; const isAdmin = ['super_admin', 'admin_sd', 'admin_smp'].includes(currentUser.role);
@@ -842,7 +959,7 @@
             content.innerHTML = `${welcomeHtml}
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"><div class="bg-white rounded-xl shadow-sm border p-6 flex items-center"><div class="bg-teal-500 text-white p-4 rounded-lg mr-4"><i class="fa-solid fa-school text-2xl"></i></div><div><p class="text-xs text-gray-500 uppercase font-bold">Sekolah</p><p id="stat-sekolah" class="text-xl font-bold text-navy-900">0</p></div></div><div class="bg-white rounded-xl shadow-sm border p-6 flex items-center"><div class="bg-green-500 text-white p-4 rounded-lg mr-4"><i class="fa-solid fa-users text-2xl"></i></div><div><p class="text-xs text-gray-500 uppercase font-bold">Siswa</p><p id="stat-siswa" class="text-xl font-bold text-navy-900">0</p></div></div><div class="bg-white rounded-xl shadow-sm border p-6 flex items-center"><div class="bg-purple-500 text-white p-4 rounded-lg mr-4"><i class="fa-solid fa-chalkboard-user text-2xl"></i></div><div><p class="text-xs text-gray-500 uppercase font-bold">GTK</p><p id="stat-gtk" class="text-xl font-bold text-navy-900">0</p></div></div><div class="bg-white rounded-xl shadow-sm border p-6 flex items-center"><div class="bg-orange-500 text-white p-4 rounded-lg mr-4"><i class="fa-solid fa-door-open text-2xl"></i></div><div><p class="text-xs text-gray-500 uppercase font-bold">Ruangan</p><p id="stat-gedung" class="text-xl font-bold text-navy-900">0</p></div></div></div>
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6"><div class="bg-white rounded-xl shadow-sm border p-6"><h3 class="text-sm font-bold text-navy-900 mb-4 border-b pb-2 uppercase">Kondisi Ruangan</h3><div class="h-64"><canvas id="chart-gedung"></canvas></div></div><div class="bg-white rounded-xl shadow-sm border p-6"><h3 class="text-sm font-bold text-navy-900 mb-4 border-b pb-2 uppercase">Sebaran Siswa (L/P)</h3><div class="h-64"><canvas id="chart-siswa"></canvas></div></div></div>`;
-            setTimeout(() => { updateDashboardCharts('all'); }, 50);
+            updateDashboardCharts('all');
         }
 
         function updateDashboardCharts(schoolId) {
@@ -1031,6 +1148,12 @@
                     
                     if (currentUser.role === 'user' && currentMenu === 'pesan') {
                         rowHtml += `<td class="px-6 py-4 text-center whitespace-nowrap action-cell"><span class="text-xs font-bold text-gray-500 bg-gray-200 px-3 py-1.5 rounded-md">Hanya Baca</span></td></tr>`;
+                    } else if (currentMenu === 'users') {
+                        rowHtml += `<td class="px-6 py-4 text-center whitespace-nowrap action-cell">
+                            <button onclick="resetPassword('${row.id}')" class="text-orange-600 hover:text-orange-800 bg-orange-50 p-2 rounded mr-1" title="Reset Password"><i class="fa-solid fa-key"></i></button>
+                            <button onclick="editData('${row.id}')" class="text-blue-600 hover:text-blue-800 bg-blue-50 p-2 rounded mr-1" title="Edit User"><i class="fa-solid fa-pen"></i></button>
+                            <button onclick="deleteData('${row.id}')" class="text-red-600 hover:text-red-800 bg-red-50 p-2 rounded" title="Hapus User"><i class="fa-solid fa-trash"></i></button>
+                        </td></tr>`;
                     } else {
                         rowHtml += `<td class="px-6 py-4 text-center whitespace-nowrap action-cell"><button onclick="editData('${row.id}')" class="text-blue-600 hover:text-blue-800 bg-blue-50 p-2 rounded mr-1"><i class="fa-solid fa-pen"></i></button><button onclick="deleteData('${row.id}')" class="text-red-600 hover:text-red-800 bg-red-50 p-2 rounded"><i class="fa-solid fa-trash"></i></button></td></tr>`;
                     }
@@ -1043,6 +1166,20 @@
             for(let i=1; i<=totalPages; i++) { pageBtns += `<button onclick="currentPage=${i};renderTableBody()" class="px-2 py-1 mx-1 rounded ${currentPage === i ? 'bg-teal-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}">${i}</button>`; }
             
             pagContainer.innerHTML = `<div>Menampilkan ${totalRows === 0 ? 0 : start + 1} sampai ${end} dari ${totalRows} entri.</div><div>${pageBtns}</div>`;
+        }
+
+        function resetPassword(id) {
+            Swal.fire({
+                title: 'Reset Password?', text: "Sandi pengguna akan dikembalikan ke default: 123456", icon: 'warning', showCancelButton: true, confirmButtonColor: '#f97316', cancelButtonColor: '#64748b', confirmButtonText: 'Ya, Reset Sandi!'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    try {
+                        if (useMockData) { const idx = mockDB.users.findIndex(x => String(x.id) === String(id)); if (idx > -1) mockDB.users[idx].password = '123456'; } 
+                        else { await supabaseClient.from('users').update({password: '123456'}).eq('id', id); }
+                        Swal.fire('Berhasil!', 'Password telah direset menjadi 123456.', 'success'); loadPage('users'); logActivity('Meriset password pengguna ID: ' + id);
+                    } catch (err) { Swal.fire('Gagal!', 'Terjadi kesalahan sistem.', 'error'); }
+                }
+            });
         }
 
         function copyPreviousData() {
@@ -1075,14 +1212,14 @@
                 let reqStar = f.required ? '<span class="text-red-500">*</span>' : '';
                 formHtml += `<div class="mb-2"><label class="block text-sm font-medium text-gray-700 mb-1">${f.label} ${reqStar}</label>`;
                 
-                let isReadOnly = f.readonly;
+                let isReadOnly = f.readonly || appSettings.is_locked;
                 if (schema.table === 'bantuan_tiket') {
                     if (currentUser.role === 'user' && (f.name === 'tanggapan' || f.name === 'status')) isReadOnly = true;
                     if (['super_admin', 'admin_sd', 'admin_smp'].includes(currentUser.role) && (f.name === 'judul' || f.name === 'kategori' || f.name === 'pesan')) isReadOnly = true;
                 }
 
                 if (f.type === 'textarea') {
-                    let roAttr = isReadOnly ? 'readonly class="w-full p-2 border rounded bg-gray-100"' : 'class="w-full p-2 border rounded"';
+                    let roAttr = isReadOnly ? 'readonly class="w-full p-2 border rounded bg-gray-100"' : 'class="w-full p-2 border rounded focus:ring-2 focus:ring-teal-500"';
                     formHtml += `<textarea id="input-${f.name}" ${roAttr} rows="3">${value}</textarea>`;
                 }
                 else if (f.type === 'select') {
@@ -1095,20 +1232,20 @@
                         if (activeJenjang === 'SD') allowedClasses = ['1','2','3','4','5','6']; else if (activeJenjang === 'SMP') allowedClasses = ['7','8','9'];
                         optsHTML = allowedClasses.map(opt => `<option value="${opt}" ${value === opt ? 'selected' : ''}>${opt}</option>`).join('');
                     }
-                    let disabledAttr = isReadOnly ? 'disabled class="w-full p-2 border rounded bg-gray-100 appearance-none"' : 'class="w-full p-2 border rounded"';
+                    let disabledAttr = isReadOnly ? 'disabled class="w-full p-2 border rounded bg-gray-100 appearance-none"' : 'class="w-full p-2 border rounded focus:ring-2 focus:ring-teal-500"';
                     formHtml += `<select id="input-${f.name}" ${disabledAttr} ${f.required?'required':''}><option value="">-- Pilih --</option>${optsHTML}</select>`;
                 } 
                 else if (f.type === 'select_bangunan') {
                     const listBangunan = await fetchTableData('prasarana_bangunan');
                     let optsHTML = listBangunan.map(b => `<option value="${b.nama_bangunan}" ${value === b.nama_bangunan ? 'selected' : ''}>${b.nama_bangunan}</option>`).join('');
-                    let disabledAttr = isReadOnly ? 'disabled class="w-full p-2 border rounded bg-gray-100 appearance-none"' : 'class="w-full p-2 border rounded"';
+                    let disabledAttr = isReadOnly ? 'disabled class="w-full p-2 border rounded bg-gray-100 appearance-none"' : 'class="w-full p-2 border rounded focus:ring-2 focus:ring-teal-500"';
                     formHtml += `<select id="input-${f.name}" ${disabledAttr} ${f.required?'required':''}><option value="">-- Pilih Bangunan --</option>${optsHTML}</select>`;
                 }
                 else if (f.type === 'file') { 
-                    formHtml += `<input type="file" id="input-${f.name}" ${isReadOnly ? 'disabled' : ''} class="w-full p-2 border rounded text-sm">`; 
+                    formHtml += `<input type="file" id="input-${f.name}" ${isReadOnly ? 'disabled' : ''} class="w-full p-2 border rounded text-sm focus:ring-2 focus:ring-teal-500">`; 
                 }
                 else { 
-                    let readonlyAttr = isReadOnly ? 'readonly class="w-full p-2 border rounded bg-gray-100"' : 'class="w-full p-2 border rounded"';
+                    let readonlyAttr = isReadOnly ? 'readonly class="w-full p-2 border rounded bg-gray-100"' : 'class="w-full p-2 border rounded focus:ring-2 focus:ring-teal-500"';
                     formHtml += `<input type="${f.type}" id="input-${f.name}" value="${value}" ${readonlyAttr} ${f.required?'required':''} ${f.min !== undefined ? `min="${f.min}"`:''} ${f.max !== undefined ? `max="${f.max}"`:''}>`; 
                 }
                 formHtml += `</div>`;
@@ -1119,8 +1256,13 @@
             }
 
             formHtml += `</div>`; form.innerHTML = formHtml;
+            
+            const btnSaveModal = document.getElementById('btn-save-data');
+            if(appSettings.is_locked) { btnSaveModal.style.display = 'none'; } else { btnSaveModal.style.display = 'flex'; }
+            
             document.getElementById('crud-modal').classList.remove('hidden');
 
+            // Form specific logic bindings
             if (schema.table === 'siswa') {
                 const elL = document.getElementById('input-total_l'); const elP = document.getElementById('input-total_p'); const elTotal = document.getElementById('input-total_siswa');
                 if (elL && elP && elTotal) {
@@ -1195,6 +1337,7 @@
         function closeModal() { document.getElementById('crud-modal').classList.add('hidden'); editingId = null; }
 
         async function saveData() {
+            if(appSettings.is_locked) { Swal.fire('Terkunci', 'Sistem sedang dikunci oleh Dinas.', 'error'); return; }
             const schema = schemas[currentMenu]; const formEl = document.getElementById('crud-form');
             if (!formEl.checkValidity()) { formEl.reportValidity(); return; }
             
@@ -1262,6 +1405,7 @@
         }
         
         function deleteData(id) { 
+            if(appSettings.is_locked) { Swal.fire('Terkunci', 'Sistem sedang dikunci oleh Dinas.', 'error'); return; }
             Swal.fire({
                 title: 'Hapus Data?', text: "Data yang dihapus tidak dapat dikembalikan!", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', cancelButtonColor: '#3085d6', confirmButtonText: 'Ya, Hapus!', cancelButtonText: 'Batal'
             }).then(async (result) => {
@@ -1351,42 +1495,16 @@
 
             if (file) {
                 appProfilDinas.file_panduan = file.name;
-                
-                if (!useMockData && supabaseClient) {
-                    try {
-                        await supabaseClient.from('profil_dinas').update({ file_panduan: file.name }).eq('id', appProfilDinas.id || 1);
-                    } catch (e) {
-                        console.error('Error saving panduan:', e);
-                    }
-                } else {
-                    if (mockDB.profil_dinas) mockDB.profil_dinas.file_panduan = file.name;
-                }
-
-                logActivity('Memperbarui file Buku Panduan');
-                
-                Swal.fire('Berhasil!', `File "${file.name}" berhasil diunggah.`, 'success').then(() => {
-                    loadPage(currentMenu);
-                });
+                if (!useMockData && supabaseClient) { try { await supabaseClient.from('profil_dinas').update({ file_panduan: file.name }).eq('id', appProfilDinas.id || 1); } catch (e) { console.error(e); } } 
+                else { if (mockDB.profil_dinas) mockDB.profil_dinas.file_panduan = file.name; }
+                logActivity('Memperbarui file Buku Panduan Helpdesk');
+                Swal.fire('Berhasil!', `File "${file.name}" berhasil diunggah.`, 'success').then(() => { loadPage(currentMenu); });
             }
         }
 
         function downloadPanduan() {
-            if (appProfilDinas && appProfilDinas.file_panduan) {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Berhasil',
-                    text: `Mengunduh file: ${appProfilDinas.file_panduan}...`,
-                    timer: 2000,
-                    showConfirmButton: false
-                });
-            } else {
-                Swal.fire({
-                    icon: 'info',
-                    title: 'Belum Tersedia',
-                    text: 'Admin Dinas belum mengunggah file Buku Panduan.',
-                    confirmButtonColor: '#0d9488'
-                });
-            }
+            if (appProfilDinas && appProfilDinas.file_panduan) { Swal.fire({ icon: 'success', title: 'Berhasil', text: `Mengunduh file: ${appProfilDinas.file_panduan}...`, timer: 2000, showConfirmButton: false }); } 
+            else { Swal.fire({ icon: 'info', title: 'Belum Tersedia', text: 'Admin Dinas belum mengunggah file Buku Panduan.', confirmButtonColor: '#0d9488' }); }
         }
     </script>
 </body>
