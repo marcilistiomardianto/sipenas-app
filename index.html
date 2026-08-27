@@ -658,6 +658,17 @@
             const landWa = document.getElementById('landing-wa'); const landEmail = document.getElementById('landing-email');
             if(landWa) landWa.textContent = appProfilDinas.wa_helpdesk || '0812 3456 7890';
             if(landEmail) landEmail.textContent = appProfilDinas.email_helpdesk || 'sipras@manggaraibaratkab.go.id';
+
+            const imgEl = document.getElementById('kop-logo-img');
+            const iconEl = document.getElementById('kop-logo-icon');
+            if (appProfilDinas.logo_dinas && imgEl && iconEl) {
+                imgEl.src = appProfilDinas.logo_dinas;
+                imgEl.classList.remove('hidden');
+                iconEl.classList.add('hidden');
+            } else if (imgEl && iconEl) {
+                imgEl.classList.add('hidden');
+                iconEl.classList.remove('hidden');
+            }
         }
 
         function updateHeaderStatus() {
@@ -833,6 +844,7 @@
                             <div><label class="block text-sm font-medium text-gray-700 mb-1">Nama Dinas</label><input type="text" id="pd_dinas" value="${appProfilDinas.nama_dinas || ''}" class="w-full p-2 border rounded focus:ring-2 focus:ring-teal-500" required></div>
                             <div><label class="block text-sm font-medium text-gray-700 mb-1">Alamat Lengkap</label><textarea id="pd_alamat" rows="2" class="w-full p-2 border rounded focus:ring-2 focus:ring-teal-500" required>${appProfilDinas.alamat || ''}</textarea></div>
                             <div><label class="block text-sm font-medium text-gray-700 mb-1">Kontak Kop (Email/Web/Telepon)</label><input type="text" id="pd_kontak" value="${appProfilDinas.kontak || ''}" class="w-full p-2 border rounded focus:ring-2 focus:ring-teal-500"></div>
+                            <div><label class="block text-sm font-medium text-gray-700 mb-1">Upload Logo Dinas (Kop Surat)</label><input type="file" id="pd_logo" accept=".jpg,.jpeg,.png" class="w-full p-2 border rounded focus:ring-2 focus:ring-teal-500 text-sm"></div>
                         </div>
                         <div class="space-y-4">
                             <h3 class="font-semibold text-gray-700 bg-gray-50 p-2 rounded">Penandatangan Laporan & Helpdesk</h3>
@@ -1274,7 +1286,6 @@
             
             document.getElementById('crud-modal').classList.remove('hidden');
 
-            // Form specific logic bindings
             if (schema.table === 'siswa') {
                 const elL = document.getElementById('input-total_l'); const elP = document.getElementById('input-total_p'); const elTotal = document.getElementById('input-total_siswa');
                 if (elL && elP && elTotal) {
