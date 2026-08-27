@@ -1181,7 +1181,11 @@
                     else { 
                         payload.id = Date.now(); 
                         if (!['users', 'logs', 'system_settings', 'schools', 'announcements'].includes(schema.table)) payload.periode = appSettings.periode;
-                        payload.sekolah_id = currentUser.sekolah_id || payload.sekolah_id || 1; mockDB[schema.table].push(payload); 
+                        payload.sekolah_id = currentUser.sekolah_id || payload.sekolah_id || 1; 
+                        
+                        if (schema.table === 'bantuan_tiket') { payload.waktu = new Date().toLocaleString('id-ID'); if (currentUser.role === 'user') payload.status = 'Menunggu'; }
+
+                        mockDB[schema.table].push(payload); 
                     }
                 } else {
                     if (!editingId) {
@@ -1191,6 +1195,8 @@
                         } else if (schema.table === 'schools' && currentUser.role === 'user') {
                             payload.id = currentUser.sekolah_id; 
                         }
+
+                        if (schema.table === 'bantuan_tiket') { payload.waktu = new Date().toLocaleString('id-ID'); if (currentUser.role === 'user') payload.status = 'Menunggu'; }
                     } 
                     
                     if (editingId) {
