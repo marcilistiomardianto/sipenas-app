@@ -946,9 +946,11 @@
                         <div class="flex gap-2">
                             <button onclick="exportToExcel()" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded transition text-sm flex items-center shadow" title="Ekspor ke Excel"><i class="fa-solid fa-file-excel md:mr-2"></i> <span class="hidden md:inline">Excel</span></button>
                             <button onclick="cetakData()" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded transition text-sm flex items-center shadow" title="Cetak Data"><i class="fa-solid fa-print md:mr-2"></i> <span class="hidden md:inline">Cetak</span></button>
-                            ${!isAdmin && currentTableData.length === 0 && schemaId !== 'schools' ? `<button onclick="copyPreviousData()" class="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded transition text-sm flex items-center shadow" title="Tarik data tahun lalu"><i class="fa-solid fa-clock-rotate-left mr-2"></i> Salin Data Sebelumnya</button>` : ''}
-                            ${!(currentUser.role === 'user' && schemaId === 'schools' && currentTableData.length > 0) ? `<button onclick="openModal(null, 'edit')" class="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded transition text-sm flex items-center shadow"><i class="fa-solid fa-plus md:mr-2"></i> <span class="hidden md:inline">Tambah Baru</span></button>` : ''}
-                        </div>
+                        ${!isAdmin && currentTableData.length === 0 && schemaId !== 'schools' ? `<button onclick="copyPreviousData()" class="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded transition text-sm flex items-center shadow" title="Tarik data tahun lalu"><i class="fa-solid fa-clock-rotate-left mr-2"></i> Salin Data Sebelumnya</button>` : ''}
+                        ${!(currentUser.role === 'user' && (schemaId === 'pesan' || (schemaId === 'schools' && currentTableData.length > 0))) ? `<button onclick="openModal(null, 'edit')" class="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded transition text-sm flex items-center shadow"><i class="fa-solid fa-plus md:mr-2"></i> <span class="hidden md:inline">Tambah Baru</span></button>` : ''}
+                    </div>
+                </div>
+            </div>
                     </div>
                 </div>
                 <div class="overflow-x-auto">
@@ -982,7 +984,12 @@
                         let val = row[f.name]; if (f.isCurrency) val = 'Rp ' + Number(val).toLocaleString('id-ID'); 
                         rowHtml += `<td class="px-6 py-4" data-label="${f.label}"><span>${val || '-'}</span></td>`; 
                     });
-                    rowHtml += `<td class="px-6 py-4 text-center whitespace-nowrap action-cell"><button onclick="editData('${row.id}')" class="text-blue-600 hover:text-blue-800 bg-blue-50 p-2 rounded mr-1"><i class="fa-solid fa-pen"></i></button><button onclick="deleteData('${row.id}')" class="text-red-600 hover:text-red-800 bg-red-50 p-2 rounded"><i class="fa-solid fa-trash"></i></button></td></tr>`;
+                    
+                    if (currentUser.role === 'user' && currentMenu === 'pesan') {
+                        rowHtml += `<td class="px-6 py-4 text-center whitespace-nowrap action-cell"><span class="text-xs font-bold text-gray-500 bg-gray-200 px-3 py-1.5 rounded-md">Hanya Baca</span></td></tr>`;
+                    } else {
+                        rowHtml += `<td class="px-6 py-4 text-center whitespace-nowrap action-cell"><button onclick="editData('${row.id}')" class="text-blue-600 hover:text-blue-800 bg-blue-50 p-2 rounded mr-1"><i class="fa-solid fa-pen"></i></button><button onclick="deleteData('${row.id}')" class="text-red-600 hover:text-red-800 bg-red-50 p-2 rounded"><i class="fa-solid fa-trash"></i></button></td></tr>`;
+                    }
                     return rowHtml;
                 }).join('');
             }
