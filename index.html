@@ -1586,7 +1586,7 @@
                     } else {
                         const schema = schemas[currentMenu]; const { error } = await supabaseClient.from(schema.table).delete().eq('id', id);
                         if (!error) { loadPage(currentMenu); Swal.fire('Terhapus!', 'Data berhasil dihapus dari database.', 'success'); } 
-                        else { Swal.fire('Gagal!', 'Terjadi kesalahan sistem.', 'error'); }
+                        else { Swal.fire('Gagal!', 'Database error: ' + error.message, 'error'); }
                     }
                 }
             });
