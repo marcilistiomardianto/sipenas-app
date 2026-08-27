@@ -481,17 +481,7 @@
             },
             sptjm: { title: 'Dokumen SPTJM', table: 'sptjm', icon: 'fa-file-signature', fields: [ { name: 'tahun', label: 'Tahun', type: 'number', required: true }, { name: 'semester', label: 'Semester', type: 'select', options: ['Ganjil', 'Genap'], required: true }, { name: 'file_sptjm', label: 'Upload File SPTJM (PDF)', type: 'file', accept: '.pdf', required: true }, { name: 'status', label: 'Status Verifikasi', type: 'select', options: ['Menunggu', 'Disetujui', 'Ditolak'], readonly: true } ] },
             pesan: { title: 'Pesan & Teguran', table: 'pesan', icon: 'fa-envelope', fields: [ { name: 'sekolah_id', label: 'Sekolah Tujuan', type: 'select_sekolah', required: true }, { name: 'judul', label: 'Judul Pesan', type: 'text', required: true }, { name: 'isi', label: 'Isi Pesan', type: 'textarea', required: true }, { name: 'status', label: 'Status', type: 'select', options: ['Unread', 'Read'], readonly: true }, { name: 'waktu', label: 'Waktu', type: 'text', readonly: true } ] },
-            bantuan_tiket: { 
-                title: 'Tiket Bantuan', table: 'bantuan_tiket', icon: 'fa-ticket', 
-                fields: [ 
-                    { name: 'judul', label: 'Judul / Perihal Kendala', type: 'text', required: true }, 
-                    { name: 'kategori', label: 'Kategori Masalah', type: 'select', options: ['Akun / Login', 'Data Sarpras / Prasarana', 'Verifikasi Data', 'Lainnya'], required: true }, 
-                    { name: 'pesan', label: 'Detail Pesan / Kendala', type: 'textarea', required: true }, 
-                    { name: 'tanggapan', label: 'Tanggapan Dinas', type: 'textarea' }, 
-                    { name: 'status', label: 'Status Tiket', type: 'select', options: ['Menunggu', 'Diproses', 'Selesai'] }, 
-                    { name: 'waktu', label: 'Waktu Pengajuan', type: 'text', readonly: true } 
-                ] 
-            },
+            bantuan_tiket: { title: 'Tiket Bantuan', table: 'bantuan_tiket', icon: 'fa-ticket', fields: [ { name: 'judul', label: 'Judul / Perihal Kendala', type: 'text', required: true }, { name: 'kategori', label: 'Kategori Masalah', type: 'select', options: ['Akun / Login', 'Data Sarpras / Prasarana', 'Verifikasi Data', 'Lainnya'], required: true }, { name: 'pesan', label: 'Detail Pesan / Kendala', type: 'textarea', required: true }, { name: 'tanggapan', label: 'Tanggapan Dinas', type: 'textarea' }, { name: 'status', label: 'Status Tiket', type: 'select', options: ['Menunggu', 'Diproses', 'Selesai'] }, { name: 'waktu', label: 'Waktu Pengajuan', type: 'text', readonly: true } ] },
             announcements: { title: 'Pengumuman', table: 'announcements', icon: 'fa-bullhorn', fields: [ { name: 'judul', label: 'Judul', type: 'text', required: true }, { name: 'isi', label: 'Isi', type: 'textarea', required: true }, { name: 'waktu', label: 'Waktu', type: 'text', readonly: true } ] },
             users: { title: 'Manajemen User', table: 'users', icon: 'fa-user-shield', fields: [ { name: 'username', label: 'Username', type: 'text', required: true, unique: true }, { name: 'password', label: 'Password', type: 'text', required: true }, { name: 'role', label: 'Role', type: 'select', options: ['super_admin', 'admin_sd', 'admin_smp', 'user'], required: true }, { name: 'nama_sekolah', label: 'Nama Instansi', type: 'text', required: true }, { name: 'sekolah_id', label: 'ID Sekolah', type: 'number' } ] },
             logs: { title: 'Log Aktivitas', table: 'logs', icon: 'fa-history', fields: [ { name: 'waktu', label: 'Waktu', type: 'text', readonly: true }, { name: 'user', label: 'Pengguna', type: 'text', readonly: true }, { name: 'aksi', label: 'Aktivitas', type: 'text', readonly: true } ] }
@@ -645,7 +635,7 @@
 
         let inactivityTime = function () {
             let time;
-            const timeoutMillis = 30 * 60 * 1000; // 30 Menit Auto-Logout
+            const timeoutMillis = 30 * 60 * 1000; 
             window.onload = resetTimer; document.onmousemove = resetTimer; document.onkeydown = resetTimer; document.onclick = resetTimer; document.onscroll = resetTimer; document.addEventListener('touchstart', resetTimer);
             function doLogout() { handleLogout(true); }
             function resetTimer() { clearTimeout(time); time = setTimeout(doLogout, timeoutMillis); }
@@ -939,13 +929,24 @@
             
             let prependHtml = '';
             if (schemaId === 'bantuan_tiket') {
+                let panduanHtml = '';
+                if (currentUser.role === 'user') {
+                    panduanHtml = `<button onclick="downloadPanduan()" class="bg-teal-500 hover:bg-teal-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition shadow-md border border-teal-400"><i class="fa-solid fa-book"></i> Unduh Panduan</button>`;
+                } else {
+                    panduanHtml = `<button onclick="downloadPanduan()" class="bg-teal-500 hover:bg-teal-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition shadow-md border border-teal-400"><i class="fa-solid fa-book"></i> Unduh</button>
+                    <button onclick="uploadPanduan()" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition shadow-md border border-orange-400"><i class="fa-solid fa-upload"></i> Upload Panduan</button>`;
+                }
+
                 prependHtml = `
                 <div class="bg-gradient-to-r from-navy-900 to-gray-800 rounded-xl shadow-lg p-6 mb-6 text-white flex flex-col md:flex-row items-center justify-between gap-4">
                     <div>
                         <h3 class="text-xl font-bold mb-1">Pusat Bantuan & Layanan Tiket</h3>
-                        <p class="text-sm text-gray-300">Hubungi Helpdesk atau buat tiket aduan untuk kendala teknis.</p>
+                        <p class="text-sm text-gray-300 mb-3">Hubungi Helpdesk atau buat tiket aduan untuk kendala teknis.</p>
+                        <div class="flex flex-wrap gap-2">
+                            ${panduanHtml}
+                        </div>
                     </div>
-                    <div class="flex gap-4">
+                    <div class="flex flex-col sm:flex-row gap-4">
                         <div class="bg-white/10 px-4 py-2 rounded-lg flex items-center gap-3">
                             <i class="fa-brands fa-whatsapp text-2xl text-green-400"></i>
                             <div><p class="text-xs text-gray-400">WhatsApp</p><p class="font-bold text-sm">${appProfilDinas?.wa_helpdesk || '0812 3456 7890'}</p></div>
@@ -1334,6 +1335,58 @@
             
             document.getElementById('cetak-content').innerHTML = html;
             window.print();
+        }
+
+        async function uploadPanduan() {
+            const { value: file } = await Swal.fire({
+                title: 'Upload Buku Panduan',
+                input: 'file',
+                inputAttributes: { 'accept': 'application/pdf', 'aria-label': 'Upload dokumen panduan (PDF)' },
+                text: 'Pilih file PDF Buku Panduan untuk diperbarui ke dalam sistem.',
+                showCancelButton: true,
+                confirmButtonText: 'Simpan',
+                cancelButtonText: 'Batal',
+                confirmButtonColor: '#0d9488'
+            });
+
+            if (file) {
+                appProfilDinas.file_panduan = file.name;
+                
+                if (!useMockData && supabaseClient) {
+                    try {
+                        await supabaseClient.from('profil_dinas').update({ file_panduan: file.name }).eq('id', appProfilDinas.id || 1);
+                    } catch (e) {
+                        console.error('Error saving panduan:', e);
+                    }
+                } else {
+                    if (mockDB.profil_dinas) mockDB.profil_dinas.file_panduan = file.name;
+                }
+
+                logActivity('Memperbarui file Buku Panduan');
+                
+                Swal.fire('Berhasil!', `File "${file.name}" berhasil diunggah.`, 'success').then(() => {
+                    loadPage(currentMenu);
+                });
+            }
+        }
+
+        function downloadPanduan() {
+            if (appProfilDinas && appProfilDinas.file_panduan) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Berhasil',
+                    text: `Mengunduh file: ${appProfilDinas.file_panduan}...`,
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+            } else {
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Belum Tersedia',
+                    text: 'Admin Dinas belum mengunggah file Buku Panduan.',
+                    confirmButtonColor: '#0d9488'
+                });
+            }
         }
     </script>
 </body>
