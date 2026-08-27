@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
@@ -623,7 +622,50 @@
             }, 300);
         }
 
-        function handleLogout() { localStorage.removeItem('sipas_user'); window.location.reload(); }
+        // FITUR AUTO-LOGOUT 30 MENIT
+        function handleLogout(isAuto = false) { 
+            localStorage.removeItem('sipas_user'); 
+            if(isAuto === true) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Sesi Berakhir',
+                    text: 'Sesi Anda telah berakhir karena tidak ada aktivitas selama 30 menit. Silakan login kembali.',
+                    confirmButtonColor: '#0d9488',
+                    allowOutsideClick: false
+                }).then(() => { window.location.reload(); });
+            } else {
+                window.location.reload(); 
+            }
+        }
+
+        let inactivityTime = function () {
+            let time;
+            // 30 Menit = 30 * 60 * 1000 milidetik
+            const timeoutMillis = 30 * 60 * 1000; 
+            
+            // Reset timer pada setiap interaksi pengguna
+            window.onload = resetTimer;
+            document.onmousemove = resetTimer;
+            document.onkeydown = resetTimer;
+            document.onclick = resetTimer;
+            document.onscroll = resetTimer;
+            document.addEventListener('touchstart', resetTimer);
+
+            function doLogout() {
+                handleLogout(true);
+            }
+
+            function resetTimer() {
+                clearTimeout(time);
+                time = setTimeout(doLogout, timeoutMillis);
+            }
+        };
+
+        function setupAutoLogout() {
+            if(currentUser) {
+                inactivityTime();
+            }
+        }
 
         async function loadSystemSettings() {
             if (useMockData) { appSettings = mockDB.system_settings; if(mockDB.profil_dinas) appProfilDinas = mockDB.profil_dinas; } 
@@ -659,7 +701,7 @@
                 isProfileCompleted = mySchool.length > 0;
             }
 
-            renderSidebar(); loadPage('dashboard');
+            renderSidebar(); loadPage('dashboard'); setupAutoLogout();
         }
 
         function renderSidebar() {
@@ -667,7 +709,7 @@
             menuContainer.innerHTML = '';
             menus.forEach(menu => {
                 if (menu.roles.includes(currentUser.role)) {
-                    // Penambahan pembatas kategori menu
+                    // Penambahan pembatas kategori menu (Gunakan insertAdjacentHTML agar fungsi klik tidak rusak)
                     if (menu.id === 'prasarana_lahan') {
                         menuContainer.insertAdjacentHTML('beforeend', '<div class="px-6 py-2 mt-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Pendataan Prasarana</div>');
                     }
@@ -689,7 +731,7 @@
                     btn.id = `menu-${menu.id}`; 
                     btn.onclick = () => {
                         if (isLocked) {
-                            Swal.fire('Akses Terkunci', 'Harap isi <b>Data Identitas</b> (Profil Sekolah) terlebih dahulu untuk membuka menu ini.', 'warning');
+                            Swal.fire('Akses Terkunci', 'Harap isi <b>Data Identitas</b> (Profil Sekolah) Anda terlebih dahulu untuk membuka kunci menu ini.', 'warning');
                             return;
                         }
                         loadPage(menu.id);
@@ -731,20 +773,20 @@
                 } else if (schemas[menuId]) {
                     await renderDataTable(menuId);
                 } else {
-                    // Fallback untuk menu yang belum ada tabelnya
+                    // Fallback untuk menu yang belum ada tabelnya (Under Construction)
                     content.innerHTML = `
-                    <div class="flex flex-col items-center justify-center h-full min-h-[400px] text-gray-400">
-                        <div class="bg-gray-100 p-8 rounded-full mb-6">
+                    <div class="flex flex-col items-center justify-center h-full min-h-[400px] text-gray-400 mt-10">
+                        <div class="bg-gray-100 p-8 rounded-full mb-6 shadow-inner">
                             <i class="fa-solid fa-person-digging text-6xl text-teal-500"></i>
                         </div>
                         <h2 class="text-2xl font-bold text-navy-900 mb-2">Modul Sedang Dikembangkan</h2>
-                        <p class="text-gray-500 text-center max-w-md">Halaman <span class="font-bold">${menuConfig ? menuConfig.label : ''}</span> sedang dalam tahap penyempurnaan dan akan segera hadir dalam waktu dekat.</p>
-                        <button onclick="loadPage('dashboard')" class="mt-6 px-6 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg shadow transition">Kembali ke Dashboard</button>
+                        <p class="text-gray-500 text-center max-w-md">Halaman <span class="font-bold text-teal-600">${menuConfig ? menuConfig.label : ''}</span> saat ini sedang dalam tahap penyempurnaan dan akan segera hadir dalam waktu dekat.</p>
+                        <button onclick="loadPage('dashboard')" class="mt-8 px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-medium rounded-lg shadow-lg shadow-teal-600/30 transition-all flex items-center gap-2"><i class="fa-solid fa-arrow-left"></i> Kembali ke Dashboard</button>
                     </div>`;
                 }
             } catch (error) {
                 console.error("Error loading page:", error);
-                content.innerHTML = `<div class="p-8 text-center text-red-500">Gagal memuat data. Silakan coba lagi atau cek koneksi Anda.</div>`;
+                content.innerHTML = `<div class="p-8 text-center text-red-500 font-bold bg-red-50 border border-red-200 rounded-lg mt-4">Gagal memuat data. Silakan coba lagi atau periksa koneksi internet Anda.</div>`;
             }
         }
 
@@ -818,11 +860,14 @@
                     const hasPeriode = !['users', 'logs', 'system_settings', 'schools', 'announcements'].includes(tableName);
                     if (hasPeriode) query = query.eq('periode', appSettings.periode);
 
-                    // Filter Berdasarkan Role dan ID Sekolah
+                    // Filter Berdasarkan Role dan ID Sekolah untuk koneksi DB sesungguhnya
                     if (currentUser.role === 'user' && tableName !== 'users' && tableName !== 'logs' && tableName !== 'system_settings' && tableName !== 'announcements') {
                         if (!currentUser.sekolah_id) return [];
-                        if (tableName === 'schools') query = query.eq('id', currentUser.sekolah_id);
-                        else query = query.eq('sekolah_id', currentUser.sekolah_id);
+                        if (tableName === 'schools') {
+                            query = query.eq('id', currentUser.sekolah_id);
+                        } else {
+                            query = query.eq('sekolah_id', currentUser.sekolah_id);
+                        }
                     } 
                     else if (['admin_sd', 'admin_smp'].includes(currentUser.role) && tableName !== 'users' && tableName !== 'logs' && tableName !== 'system_settings' && tableName !== 'announcements') {
                         const targetJenjang = currentUser.role === 'admin_sd' ? 'SD' : 'SMP';
@@ -868,7 +913,7 @@
             filteredTableData = [...currentTableData]; currentPage = 1; 
             const isAdmin = ['super_admin', 'admin_sd', 'admin_smp'].includes(currentUser.role);
             
-            // Generate Dynamic Filters HTML
+            // Generate Dynamic Filters HTML untuk semua form Dropdown
             let filterHtml = '';
             if (isAdmin && schemaId !== 'schools' && schemaId !== 'users' && schemaId !== 'logs') {
                 filterHtml += `<select id="filter-sekolah_id" onchange="applyFilters()" class="p-2 border rounded focus:ring-2 focus:ring-teal-500 text-sm"><option value="">Semua Sekolah</option>${currentSchoolsData.map(s => `<option value="${s.id}">${s.nama}</option>`).join('')}</select>`;
@@ -1105,11 +1150,6 @@
                     } 
                 });
 
-                if (currentMenu === 'schools') {
-                    const kepsek = payload.kepsek; const nip = payload.nip;
-                    if(kepsek && useMockData) { mockDB.pesan.push({ id: Date.now(), sekolah_id: currentUser.sekolah_id || 1, judul: 'SYS_HISTORY_IDENTITY', isi: JSON.stringify({ kepsek, nip, periode: appSettings.periode }), status: 'Read', waktu: new Date().toISOString() }); }
-                }
-
                 if (useMockData) {
                     await new Promise(r => setTimeout(r, 600));
                     if (editingId) { const idx = mockDB[schema.table].findIndex(x => String(x.id) === String(editingId)); mockDB[schema.table][idx] = { ...mockDB[schema.table][idx], ...payload }; } 
@@ -1119,12 +1159,13 @@
                         payload.sekolah_id = currentUser.sekolah_id || payload.sekolah_id || 1; mockDB[schema.table].push(payload); 
                     }
                 } else {
+                    // Logika Real Supabase Database
                     if (!editingId) {
                         if (!['users', 'logs', 'system_settings', 'schools', 'announcements'].includes(schema.table)) {
                             payload.periode = appSettings.periode;
                             payload.sekolah_id = currentUser.sekolah_id || payload.sekolah_id || 1; 
                         } else if (schema.table === 'schools' && currentUser.role === 'user') {
-                            payload.id = currentUser.sekolah_id; 
+                            payload.id = currentUser.sekolah_id; // Jangan masukkan kolom sekolah_id ke tabel schools
                         }
                     } 
                     
@@ -1143,7 +1184,7 @@
                     renderSidebar();
                 }
 
-                closeModal(); loadPage(currentMenu); Swal.fire('Berhasil!', 'Data tersimpan dengan aman.', 'success');
+                closeModal(); await loadPage(currentMenu); Swal.fire('Berhasil!', 'Data tersimpan dengan aman.', 'success');
                 
             } catch (error) { console.error(error); Swal.fire('Gagal!', 'Terjadi kesalahan sistem: ' + error.message, 'error'); } 
             finally { btnSave.disabled = false; btnSave.innerHTML = originalBtnText; }
