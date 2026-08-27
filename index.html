@@ -857,6 +857,17 @@
             const btn = document.getElementById('btn-save-profil');
             btn.innerHTML = '<div class="loader w-4 h-4 border-2 border-t-white mr-2"></div> Menyimpan...'; btn.disabled = true;
             
+            let logoBase64 = appProfilDinas.logo_dinas;
+            const logoInput = document.getElementById('pd_logo');
+            if (logoInput && logoInput.files.length > 0) {
+                const file = logoInput.files[0];
+                logoBase64 = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result);
+                    reader.readAsDataURL(file);
+                });
+            }
+
             const payload = {
                 nama_pemda: document.getElementById('pd_pemda').value,
                 nama_dinas: document.getElementById('pd_dinas').value,
@@ -866,7 +877,8 @@
                 pangkat_kadis: document.getElementById('pd_pangkat').value,
                 nip_kadis: document.getElementById('pd_nip').value,
                 wa_helpdesk: document.getElementById('pd_wa').value,
-                email_helpdesk: document.getElementById('pd_email').value
+                email_helpdesk: document.getElementById('pd_email').value,
+                logo_dinas: logoBase64
             };
 
             try {
