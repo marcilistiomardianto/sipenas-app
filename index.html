@@ -64,7 +64,6 @@
             .responsive-table tbody td span { word-break: break-word; text-align: right; }
         }
 
-        /* NEW LANDING PAGE STYLES */
         .hero-pattern {
             background-color: #0f172a;
             background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%231e293b' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
@@ -83,11 +82,12 @@
     <!-- LANDING PAGE START -->
     <div id="landing-page" class="min-h-screen flex flex-col font-sans selection:bg-teal-500 selection:text-white">
         
-        <!-- Header / Navbar -->
         <header class="bg-navy-900 border-b border-gray-800 sticky top-0 z-50 transition-all duration-300 shadow-lg">
             <div class="container mx-auto px-4 lg:px-8 py-4 flex items-center justify-between">
                 <div class="flex items-center gap-3 cursor-pointer group" onclick="window.scrollTo(0,0)">
-                    <div class="bg-white p-1.5 rounded-lg shadow-md group-hover:shadow-teal-500/20 transition-all"><img src="https://logobase.net/wp-content/uploads/2025/11/Kabupaten-Manggarai-Barat-Logo.webp" alt="Logo" class="w-10 h-10 object-contain"></div>
+                    <div class="bg-white p-1.5 rounded-lg shadow-md group-hover:shadow-teal-500/20 transition-all">
+                        <img src="https://logobase.net/wp-content/uploads/2025/11/Kabupaten-Manggarai-Barat-Logo.webp" alt="Logo" class="w-10 h-10 object-contain">
+                    </div>
                     <div class="hidden sm:block">
                         <h1 class="font-bold text-sm tracking-wide text-white leading-tight uppercase group-hover:text-teal-400 transition-colors">Dinas Pendidikan, Kepemudaan & Olahraga</h1>
                         <h2 class="font-medium text-xs text-gray-400">Kabupaten Manggarai Barat</h2>
@@ -106,9 +106,7 @@
             </div>
         </header>
 
-        <!-- Hero Section -->
         <section class="hero-pattern relative pt-20 pb-32 overflow-hidden flex-1 flex flex-col justify-center">
-            <!-- Decorative Elements -->
             <div class="absolute top-1/4 left-10 w-64 h-64 bg-teal-600 rounded-full mix-blend-multiply filter blur-3xl opacity-20 floating-shape"></div>
             <div class="absolute bottom-1/4 right-10 w-72 h-72 bg-blue-600 rounded-full mix-blend-multiply filter blur-3xl opacity-20 floating-shape" style="animation-delay: 2s;"></div>
 
@@ -139,7 +137,6 @@
                 </div>
             </div>
             
-            <!-- Wave Divider -->
             <div class="absolute bottom-0 left-0 right-0">
                 <svg viewBox="0 0 1440 120" class="w-full h-auto text-gray-50 fill-current" xmlns="http://www.w3.org/2000/svg">
                     <path d="M0,64L80,69.3C160,75,320,85,480,80C640,75,800,53,960,42.7C1120,32,1280,32,1360,32L1440,32L1440,120L1360,120C1280,120,1120,120,960,120C800,120,640,120,480,120C320,120,160,120,80,120L0,120Z"></path>
@@ -147,10 +144,8 @@
             </div>
         </section>
 
-        <!-- Main Content -->
         <main class="flex-1 bg-gray-50 relative z-20 pb-20">
             
-            <!-- Statistics Section (Overlapping Hero) -->
             <div id="statistik" class="container mx-auto px-4 lg:px-8 -mt-20 relative z-30 mb-20">
                 <div class="glass-card rounded-2xl shadow-xl p-6 lg:p-8 grid grid-cols-2 md:grid-cols-4 gap-6 border border-gray-200">
                     
@@ -181,7 +176,6 @@
                 </div>
             </div>
 
-            <!-- Services Section -->
             <div id="layanan" class="container mx-auto px-4 lg:px-8">
                 <div class="text-center mb-12">
                     <h2 class="text-3xl font-extrabold text-navy-900 mb-4">Ruang Lingkup Pendataan</h2>
@@ -216,13 +210,14 @@
             </div>
         </main>
 
-        <!-- Footer -->
         <footer id="kontak" class="bg-navy-900 text-white pt-16 pb-8 border-t border-gray-800">
             <div class="container mx-auto px-4 lg:px-8">
                 <div class="grid grid-cols-1 md:grid-cols-12 gap-8 lg:gap-12 mb-12">
                     <div class="md:col-span-5 lg:col-span-4">
                         <div class="flex items-center gap-3 mb-6">
-                            <div class="bg-white p-1.5 rounded-lg"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a6/Logo_of_the_Ministry_of_Education_and_Culture_of_the_Republic_of_Indonesia.svg/1024px-Logo_of_the_Ministry_of_Education_and_Culture_of_the_Republic_of_Indonesia.svg.png" alt="Logo" class="w-12 h-12 object-contain"></div>
+                            <div class="bg-white p-1.5 rounded-lg">
+                                <img src="https://logobase.net/wp-content/uploads/2025/11/Kabupaten-Manggarai-Barat-Logo.webp" alt="Logo" class="w-12 h-12 object-contain">
+                            </div>
                             <div><h3 class="font-bold text-lg tracking-wide">Dinas Pendidikan</h3><p class="text-teal-400 text-sm font-medium">Kab. Manggarai Barat</p></div>
                         </div>
                         <p class="text-gray-400 text-sm leading-relaxed pr-4">Sistem ini dikelola secara terpusat untuk mewujudkan tata kelola aset pendidikan yang transparan, akuntabel, dan berbasis data.</p>
@@ -256,7 +251,6 @@
     </div>
     <!-- LANDING PAGE END -->
 
-    <!-- Print Layout Area -->
     <div id="cetak-area" class="hidden bg-white min-h-screen">
         <div class="border-b-4 border-double border-black pb-4 mb-6 flex items-center justify-center text-center">
             <div class="w-24 flex-shrink-0 text-center" id="kop-logo-container">
@@ -284,7 +278,6 @@
         </div>
     </div>
 
-    <!-- Login Screen -->
     <div id="login-screen" class="hidden min-h-screen flex items-center justify-center bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1541339907198-e08756dedf3f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80');">
         <div class="absolute inset-0 bg-navy-900 bg-opacity-90 backdrop-blur-sm"></div>
         
@@ -382,7 +375,6 @@
         </div>
     </div>
 
-    <!-- Modals and Data Structure Logic Stream -->
     <script>
         function sanitizeInput(str) {
             if (typeof str !== 'string') return str;
@@ -692,6 +684,81 @@
         function showLoginScreen() { document.getElementById('landing-page').classList.add('hidden'); document.getElementById('login-screen').classList.remove('hidden'); }
         function hideLoginScreen() { document.getElementById('login-screen').classList.add('hidden'); document.getElementById('landing-page').classList.remove('hidden'); }
         function toggleSidebar() { const sidebar = document.getElementById('sidebar'); const overlay = document.getElementById('mobile-overlay'); sidebar.classList.toggle('-translate-x-full'); overlay.classList.toggle('hidden'); }
+
+        async function loadLandingPageStats() {
+            try {
+                let tSekolah = 0, tSarana = 0, pBaik = 0, pRehab = 0;
+
+                if (useMockData) {
+                    tSekolah = (mockDB.schools || []).length;
+                    
+                    const saranaKeys = ['sarana_meubeler', 'sarana_it', 'sarana_pembelajaran', 'sarana_buku', 'sarana_olahraga', 'sarana_uks', 'sarana_pendukung'];
+                    saranaKeys.forEach(k => {
+                        (mockDB[k] || []).forEach(item => tSarana += (Number(item.total) || 0));
+                    });
+
+                    const prasKeys = ['prasarana_bangunan', 'prasarana_ruang', 'prasarana_fasilitas'];
+                    prasKeys.forEach(k => {
+                        (mockDB[k] || []).forEach(item => {
+                            let dmg = Number(item.tingkat_kerusakan) || 0;
+                            if (dmg <= 30) pBaik++; else pRehab++;
+                        });
+                    });
+                } else {
+                    if (!supabaseClient) return;
+                    
+                    const { count: cSekolah } = await supabaseClient.from('schools').select('*', { count: 'exact', head: true });
+                    tSekolah = cSekolah || 0;
+
+                    const saranaKeys = ['sarana_meubeler', 'sarana_it', 'sarana_pembelajaran', 'sarana_buku', 'sarana_olahraga', 'sarana_uks', 'sarana_pendukung'];
+                    for (const k of saranaKeys) {
+                        const { data } = await supabaseClient.from(k).select('total');
+                        if (data) data.forEach(item => tSarana += (Number(item.total) || 0));
+                    }
+
+                    const prasKeys = ['prasarana_bangunan', 'prasarana_ruang', 'prasarana_fasilitas'];
+                    for (const k of prasKeys) {
+                        const { data } = await supabaseClient.from(k).select('tingkat_kerusakan');
+                        if (data) {
+                            data.forEach(item => {
+                                let dmg = Number(item.tingkat_kerusakan) || 0;
+                                if (dmg <= 30) pBaik++; else pRehab++;
+                            });
+                        }
+                    }
+                }
+
+                const animateVal = (id, endVal) => {
+                    let obj = document.getElementById(id);
+                    if(!obj) return;
+                    let startVal = 0;
+                    let duration = 1500;
+                    if(endVal === 0) { obj.textContent = "0"; return; }
+                    let step = Math.ceil(endVal / (duration / 30));
+                    
+                    let timer = setInterval(() => {
+                        startVal += step;
+                        if(startVal >= endVal) {
+                            startVal = endVal;
+                            clearInterval(timer);
+                        }
+                        obj.textContent = startVal.toLocaleString('id-ID');
+                    }, 30);
+                };
+
+                animateVal('landing-stat-sekolah', tSekolah);
+                animateVal('landing-stat-sarana', tSarana);
+                animateVal('landing-stat-prasarana', pBaik);
+                animateVal('landing-stat-rusak', pRehab);
+
+            } catch(e) {
+                console.error("Error loading stats:", e);
+                document.getElementById('landing-stat-sekolah').textContent = "0";
+                document.getElementById('landing-stat-sarana').textContent = "0";
+                document.getElementById('landing-stat-prasarana').textContent = "0";
+                document.getElementById('landing-stat-rusak').textContent = "0";
+            }
+        }
 
         function initAuth() {
             try {
@@ -1064,7 +1131,7 @@
                             <div><label class="block text-sm font-medium text-gray-700 mb-1">Nama Dinas</label><input type="text" id="pd_dinas" value="${appProfilDinas.nama_dinas || ''}" class="w-full p-2 border rounded focus:ring-2 focus:ring-teal-500" required></div>
                             <div><label class="block text-sm font-medium text-gray-700 mb-1">Alamat Lengkap</label><textarea id="pd_alamat" rows="2" class="w-full p-2 border rounded focus:ring-2 focus:ring-teal-500" required>${appProfilDinas.alamat || ''}</textarea></div>
                             <div><label class="block text-sm font-medium text-gray-700 mb-1">Kontak Kop (Email/Web/Telepon)</label><input type="text" id="pd_kontak" value="${appProfilDinas.kontak || ''}" class="w-full p-2 border rounded focus:ring-2 focus:ring-teal-500"></div>
-                            <div><label class="block text-sm font-medium text-gray-700 mb-1">Upload Logo Dinas (Kop Surat)</label><input type="file" id="pd_logo" accept=".jpg,.jpeg,.png" class="w-full p-2 border rounded focus:ring-2 focus:ring-teal-500 text-sm"></div>
+                            <div><label class="block text-sm font-medium text-gray-700 mb-1">Upload Logo Dinas (Kop Surat)</label><input type="file" id="pd_logo" accept=".jpg,.jpeg,.png,.webp" class="w-full p-2 border rounded focus:ring-2 focus:ring-teal-500 text-sm"></div>
                         </div>
                         <div class="space-y-4">
                             <h3 class="font-semibold text-gray-700 bg-gray-50 p-2 rounded">Penandatangan Laporan & Helpdesk</h3>
@@ -1250,10 +1317,6 @@
             let totalL = 0, totalP = 0; 
             fSiswa.forEach(s => { totalL += Number(s.total_l || 0); totalP += Number(s.total_p || 0); });
             dashCharts.siswa = new Chart(document.getElementById('chart-siswa'), { type: 'pie', data: { labels: ['Laki-laki', 'Perempuan'], datasets: [{ data: [totalL, totalP], backgroundColor: ['#0d9488', '#ec4899'] }] }, options: { responsive: true, maintainAspectRatio: false } });
-        }
-
-        function loadLandingPageStats() {
-            setTimeout(() => { document.getElementById('landing-stat-sekolah').textContent = "128"; document.getElementById('landing-stat-sarana').textContent = "4.560"; document.getElementById('landing-stat-prasarana').textContent = "2.156"; document.getElementById('landing-stat-rusak').textContent = "312"; }, 1000);
         }
     </script>
     
@@ -1836,7 +1899,6 @@
         }
     </script>
     
-    <!-- CRUD Modal Structure -->
     <div id="crud-modal" class="fixed inset-0 bg-navy-900/80 backdrop-blur-sm z-50 hidden flex items-center justify-center px-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden border border-gray-100">
             <div class="px-6 py-4 border-b flex justify-between items-center bg-gray-50/80 backdrop-blur">
