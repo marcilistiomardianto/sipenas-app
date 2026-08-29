@@ -1074,49 +1074,168 @@
             const content = document.getElementById('dynamic-content');
             
             content.innerHTML = `
-            <div class="bg-white rounded-xl shadow-sm border p-6">
-                <div class="flex items-center justify-between border-b pb-4 mb-4">
-                    <h3 class="text-xl font-bold text-navy-900"><i class="fa-solid fa-map-location-dot text-teal-600 mr-2"></i> Peta Sebaran Sekolah</h3>
+            <div class="bg-white rounded-xl shadow-sm border p-4 md:p-6 mb-6">
+                <div class="flex items-center gap-4 mb-4 border-b pb-4">
+                    <div class="bg-teal-50 p-3 rounded-xl text-teal-600"><i class="fa-solid fa-map-location-dot text-2xl"></i></div>
+                    <div>
+                        <h2 class="text-xl font-bold text-navy-900">Peta Sebaran Sarpras Sekolah</h2>
+                        <p class="text-sm text-gray-500" id="map-subtitle">Memuat data koordinat sekolah...</p>
+                    </div>
                 </div>
-                <div id="main-distribution-map" class="w-full h-[600px] bg-gray-200 rounded-xl border-2 border-teal-500 relative z-10"></div>
-                <p class="text-sm text-gray-500 mt-3"><i class="fa-solid fa-circle-info text-blue-500 mr-1"></i> Peta ini secara otomatis menampilkan titik lokasi sekolah yang telah melengkapi data koordinat (Latitude & Longitude) di Profil Identitas Sekolah.</p>
+                
+                <div class="flex flex-wrap gap-3 items-center mb-6">
+                    <input type="text" id="map-search" placeholder="Cari sekolah / NPSN..." class="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 text-sm w-full md:w-48">
+                    <select id="map-kecamatan" class="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 text-sm w-full md:w-auto"><option value="">Semua Kecamatan</option></select>
+                    <select id="map-jenjang" class="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 text-sm w-full md:w-auto"><option value="">Semua Jenjang (SD & SMP)</option><option value="SD">SD</option><option value="SMP">SMP</option></select>
+                    <select id="map-kondisi" class="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 text-sm w-full md:w-auto"><option value="">Semua Kondisi</option><option value="Baik">Kondisi Baik</option><option value="Perlu Rehab">Perlu Rehab</option></select>
+                    <button id="map-reset" class="px-4 py-2 border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 rounded-lg text-sm transition shadow-sm">Reset</button>
+                </div>
+                
+                <div id="main-distribution-map" class="w-full h-[600px] bg-gray-100 rounded-xl border border-gray-200 relative z-10"></div>
             </div>`;
 
-            const schoolsData = await fetchTableData('schools');
+            // Ambil data sekolah dan data bangunan untuk cek kondisi status sarpras
+            const [schoolsData, bangunanData] = await Promise.all([
+                fetchTableData('schools'),
+                fetchTableData('prasarana_bangunan')
+            ]);
+
+            let mapData = [];
+            let kecamatanSet = new Set();
+            
+            schoolsData.forEach(school => {
+                if (school.latitude && school.longitude) {
+                    const lat = parseFloat(school.latitude);
+                    const lng = parseFloat(school.longitude);
+                    if (!isNaN(lat) && !isNaN(lng)) {
+                        // Ekstrak Kecamatan dari Alamat (secara sederhana)
+                        let kec = '-';
+                        if (school.alamat && school.alamat.toLowerCase().includes('kec.')) {
+                            const parts = school.alamat.split(/kec\./i);
+                            if (parts.length > 1) kec = parts[1].split(',')[0].trim();
+                        } else if (school.alamat && school.alamat.toLowerCase().includes('kecamatan')) {
+                            const parts = school.alamat.split(/kecamatan/i);
+                            if (parts.length > 1) kec = parts[1].split(',')[0].trim();
+                        }
+                        if (kec !== '-') kecamatanSet.add(kec);
+
+                        // Tentukan Status Sarpras dari data kerusakan Bangunan
+                        const myBangunan = bangunanData.filter(b => String(b.sekolah_id) === String(school.id));
+                        let maxDamage = 0;
+                        myBangunan.forEach(b => {
+                            let dmg = Number(b.tingkat_kerusakan) || 0;
+                            if(dmg > maxDamage) maxDamage = dmg;
+                        });
+                        
+                        let statusSarpras = 'Baik';
+                        let statusColor = '#0d9488'; // Warna Teal (Hijau)
+                        let statusTextClass = 'text-teal-600';
+                        if (maxDamage > 30) {
+                            statusSarpras = 'Perlu Rehab';
+                            statusColor = '#b91c1c'; // Warna Merah
+                            statusTextClass = 'text-red-600';
+                        }
+
+                        mapData.push({ ...school, lat, lng, kec, statusSarpras, statusColor, statusTextClass });
+                    }
+                }
+            });
+
+            // Isi Dropdown Kecamatan
+            const kecSelect = document.getElementById('map-kecamatan');
+            Array.from(kecamatanSet).sort().forEach(k => {
+                kecSelect.innerHTML += `<option value="${k}">Kec. ${k}</option>`;
+            });
 
             setTimeout(() => {
                 if (window.sebaranMap) { window.sebaranMap.remove(); window.sebaranMap = null; }
                 
+                // Inisialisasi Peta Leaflet
                 window.sebaranMap = L.map('main-distribution-map').setView([-8.496, 119.872], 10);
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(window.sebaranMap);
 
-                let markersBounds = [];
+                let markerGroup = L.layerGroup().addTo(window.sebaranMap);
 
-                schoolsData.forEach(school => {
-                    if (school.latitude && school.longitude) {
-                        const lat = parseFloat(school.latitude);
-                        const lng = parseFloat(school.longitude);
-                        
-                        if (!isNaN(lat) && !isNaN(lng)) {
-                            const marker = L.marker([lat, lng]).addTo(window.sebaranMap);
+                const renderMarkers = () => {
+                    markerGroup.clearLayers();
+                    let markersBounds = [];
+                    
+                    const searchVal = document.getElementById('map-search').value.toLowerCase();
+                    const kecVal = document.getElementById('map-kecamatan').value;
+                    const jenjangVal = document.getElementById('map-jenjang').value;
+                    const kondisiVal = document.getElementById('map-kondisi').value;
+                    
+                    let visibleCount = 0;
+
+                    mapData.forEach(school => {
+                        // Terapkan Filter
+                        let matchSearch = !searchVal || school.nama.toLowerCase().includes(searchVal) || String(school.npsn).includes(searchVal);
+                        let matchKec = !kecVal || school.kec === kecVal;
+                        let matchJenjang = !jenjangVal || school.jenjang === jenjangVal;
+                        let matchKondisi = !kondisiVal || school.statusSarpras === kondisiVal;
+
+                        if (matchSearch && matchKec && matchJenjang && matchKondisi) {
+                            visibleCount++;
                             
+                            // Desain Custom Marker (Berbentuk Lingkaran dengan Teks SD/SMP)
+                            const customIcon = L.divIcon({
+                                className: 'custom-map-icon',
+                                html: `<div style="background-color: ${school.statusColor}; color: white; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 11px; border: 2px solid white; box-shadow: 0 4px 6px rgba(0,0,0,0.4); letter-spacing: 0.5px;">${school.jenjang || '-'}</div>`,
+                                iconSize: [34, 34],
+                                iconAnchor: [17, 17],
+                                popupAnchor: [0, -17]
+                            });
+
+                            const marker = L.marker([school.lat, school.lng], { icon: customIcon }).addTo(markerGroup);
+                            
+                            // Desain Popup saat Marker diklik
                             const popupContent = `
-                                <div class="text-center min-w-[200px]">
-                                    <h4 class="font-bold text-navy-900 border-b pb-1 mb-1">${school.nama}</h4>
-                                    <p class="text-xs text-gray-600 mb-1"><b>NPSN:</b> ${school.npsn} | <b>Jenjang:</b> ${school.jenjang}</p>
-                                    <p class="text-xs text-gray-500">${school.alamat || 'Alamat belum diisi'}</p>
-                                    <p class="text-xs text-teal-600 font-semibold mt-2">Kepsek: ${school.kepsek || '-'}</p>
+                                <div class="min-w-[240px] font-sans">
+                                    <div class="flex justify-between items-start border-b pb-2 mb-2">
+                                        <span class="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">${school.jenjang} - NPSN: ${school.npsn}</span>
+                                        <span class="text-[10px] text-gray-500">Kec. ${school.kec}</span>
+                                    </div>
+                                    <h4 class="font-extrabold text-navy-900 text-sm mb-1">${school.nama}</h4>
+                                    <div class="text-xs text-gray-600 space-y-1 mb-3">
+                                        <p><b>Kepala Sekolah:</b> ${school.kepsek || '-'} ${school.status_kepsek ? `(${school.status_kepsek})` : ''}</p>
+                                        <p><b>Kontak:</b> ${school.no_hp_kepsek || '-'}</p>
+                                        <p><b>Alamat:</b> ${school.alamat || '-'}</p>
+                                    </div>
+                                    <div class="bg-gray-50 border border-gray-200 rounded p-2 text-xs font-semibold flex items-center gap-2">
+                                        Status Sarpras: <span class="${school.statusTextClass}">${school.statusSarpras}</span>
+                                    </div>
                                 </div>
                             `;
-                            marker.bindPopup(popupContent);
-                            markersBounds.push([lat, lng]);
+                            marker.bindPopup(popupContent, { minWidth: 260 });
+                            markersBounds.push([school.lat, school.lng]);
                         }
+                    });
+
+                    document.getElementById('map-subtitle').innerHTML = `Menampilkan <b>${visibleCount}</b> dari <b>${mapData.length}</b> Sekolah terdata.`;
+
+                    // Paskan batas zoom peta jika ada hasil
+                    if (markersBounds.length > 0) {
+                        window.sebaranMap.fitBounds(markersBounds, { padding: [50, 50], maxZoom: 15 });
                     }
+                };
+
+                // Daftarkan aksi Filter
+                document.getElementById('map-search').addEventListener('input', renderMarkers);
+                document.getElementById('map-kecamatan').addEventListener('change', renderMarkers);
+                document.getElementById('map-jenjang').addEventListener('change', renderMarkers);
+                document.getElementById('map-kondisi').addEventListener('change', renderMarkers);
+                document.getElementById('map-reset').addEventListener('click', () => {
+                    document.getElementById('map-search').value = '';
+                    document.getElementById('map-kecamatan').value = '';
+                    document.getElementById('map-jenjang').value = '';
+                    document.getElementById('map-kondisi').value = '';
+                    renderMarkers();
+                    window.sebaranMap.setView([-8.496, 119.872], 10);
                 });
 
-                if (markersBounds.length > 0) {
-                    window.sebaranMap.fitBounds(markersBounds, { padding: [50, 50] });
-                }
+                // Eksekusi Peta Pertama Kali
+                renderMarkers();
+
             }, 300);
         }
 
