@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     
-    <title>SIPENAS - Sistem Pendataan Sarana Prasarana Sekolah</title>
+    <title>SIPRAS MABAR - Sistem Pendataan Sarana Prasarana Sekolah</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -123,7 +123,7 @@
                     </h1>
                     
                     <p class="text-gray-400 text-lg md:text-xl mb-10 leading-relaxed max-w-3xl mx-auto font-light">
-                        SIPENAS adalah platform resmi satu pintu untuk pendataan aset, bangunan, dan fasilitas sekolah se-Kabupaten Manggarai Barat secara presisi, akurat, dan dapat dipertanggungjawabkan.
+                        SIPRAS MABAR adalah platform resmi satu pintu untuk pendataan aset, bangunan, dan fasilitas sekolah se-Kabupaten Manggarai Barat secara presisi, akurat, dan dapat dipertanggungjawabkan.
                     </p>
                     
                     <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -290,7 +290,7 @@
                 <div class="inline-flex items-center justify-center w-16 h-16 bg-teal-50 rounded-2xl mb-4 border border-teal-100 shadow-inner">
                     <i class="fa-solid fa-building-columns text-4xl text-teal-600"></i>
                 </div>
-                <h1 class="text-3xl font-extrabold text-navy-900 tracking-tight mb-1">SIPENAS</h1>
+                <h1 class="text-3xl font-extrabold text-navy-900 tracking-tight mb-1">SIPRAS MABAR</h1>
                 <p class="text-gray-500 text-sm">Sistem Informasi Pendataan Sekolah</p>
                 <div class="mt-4 pt-4 border-t border-gray-100">
                     <p class="text-navy-900 text-sm font-bold leading-relaxed uppercase tracking-wider">Dinas Pendidikan, Kepemudaan<br>dan Olahraga</p>
@@ -335,7 +335,7 @@
         <div id="mobile-overlay" class="fixed inset-0 bg-navy-900 bg-opacity-75 backdrop-blur-sm z-40 hidden md:hidden"></div>
         <aside class="fixed inset-y-0 left-0 z-50 w-64 bg-navy-900 text-gray-300 flex flex-col transition-transform duration-300 transform -translate-x-full md:relative md:translate-x-0 shadow-xl" id="sidebar">
             <div class="h-16 flex items-center justify-between border-b border-gray-800/50 px-5 bg-navy-800/50">
-                <div class="flex items-center"><i class="fa-solid fa-building-columns text-xl mr-3 text-teal-400"></i><span class="font-extrabold text-xl tracking-widest text-white">SIPENAS</span></div>
+                <div class="flex items-center"><i class="fa-solid fa-building-columns text-xl mr-3 text-teal-400"></i><span class="font-extrabold text-xl tracking-widest text-white">SIPRAS MABAR</span></div>
                 <button id="close-sidebar-btn" class="md:hidden text-gray-400 hover:text-white"><i class="fa-solid fa-times text-xl"></i></button>
             </div>
             <div class="p-5 flex items-center gap-3 border-b border-gray-800/50 bg-navy-800/20">
@@ -794,7 +794,9 @@
                 } catch (err) { console.error('Failed to log activity:', err); }
             }
         }
-
+    </script>
+    
+    <script>
         async function handleLogin(e) {
             e.preventDefault();
             const u = sanitizeInput(document.getElementById('username').value.trim()); const p = document.getElementById('password').value; 
@@ -1196,7 +1198,9 @@
                 btn.innerHTML = '<i class="fa-solid fa-save mr-2"></i> Simpan Profil'; btn.disabled = false; 
             }
         }
-
+    </script>
+    
+    <script>
         async function renderPengaturanSistem() {
             const content = document.getElementById('dynamic-content');
             content.innerHTML = `
@@ -1264,9 +1268,7 @@
                 btn.innerHTML = '<i class="fa-solid fa-save mr-2"></i> Terapkan Pengaturan'; btn.disabled = false; 
             }
         }
-    </script>
-    
-    <script>
+
         async function renderDashboard() {
             const content = document.getElementById('dynamic-content');
             let welcomeHtml = ''; const isAdmin = ['super_admin', 'admin_sd', 'admin_smp'].includes(currentUser.role);
@@ -1277,7 +1279,7 @@
                             <div class="text-yellow-500 mr-4 mt-1"><i class="fa-solid fa-triangle-exclamation text-3xl"></i></div>
                             <div>
                                 <h2 class="text-xl font-bold text-yellow-800 mb-1">Lengkapi Profil Sekolah Anda!</h2>
-                                <p class="text-yellow-700 mb-4 text-sm leading-relaxed">Selamat Datang di SIPENAS. Saat ini seluruh menu pendataan Sarana dan Prasarana Anda sedang <b>dikunci</b>. Silakan lengkapi Data Identitas Sekolah Anda terlebih dahulu untuk membuka kunci sistem.</p>
+                                <p class="text-yellow-700 mb-4 text-sm leading-relaxed">Selamat Datang di SIPRAS MABAR. Saat ini seluruh menu pendataan Sarana dan Prasarana Anda sedang <b>dikunci</b>. Silakan lengkapi Data Identitas Sekolah Anda terlebih dahulu untuk membuka kunci sistem.</p>
                                 <button onclick="loadPage('schools')" class="bg-yellow-500 hover:bg-yellow-600 text-white px-5 py-2 rounded-lg font-bold transition shadow-sm"><i class="fa-solid fa-school mr-2"></i> Isi Data Identitas Sekarang</button>
                             </div>
                         </div>
@@ -1497,7 +1499,9 @@
             content.innerHTML = html; 
             renderTableBody(); 
         }
-
+    </script>
+    
+    <script>
         function renderTableBody() {
             const schema = schemas[currentMenu]; const tbody = document.getElementById('table-body'); const pagContainer = document.getElementById('pagination-container');
             if (!tbody || !pagContainer) return;
@@ -1804,13 +1808,19 @@
                         if (!error) { 
                             loadPage(currentMenu); Swal.fire('Terhapus!', 'Data berhasil dihapus dari database.', 'success'); 
                         } else { 
-                            Swal.fire('Gagal!', 'Database error: ' + error.message, 'error'); 
+                            if (error.message.includes('violates foreign key constraint')) {
+                                Swal.fire('Gagal Dihapus!', 'Database menolak menghapus Sekolah ini karena masih ada User/Akun atau Data Sarpras yang terikat pada sekolah ini. Silakan hapus akun User-nya terlebih dahulu, atau aktifkan fitur ON DELETE CASCADE di Supabase.', 'error');
+                            } else {
+                                Swal.fire('Gagal!', 'Database error: ' + error.message, 'error');
+                            }
                         }
                     }
                 }
             });
         }
+    </script>
 
+    <script>
         function exportToExcel() {
             if (filteredTableData.length === 0) { Swal.fire('Info', 'Tidak ada data untuk diekspor.', 'info'); return; }
             const schema = schemas[currentMenu]; const isAdmin = ['super_admin', 'admin_sd', 'admin_smp'].includes(currentUser.role);
@@ -1828,7 +1838,7 @@
 
             const ws = XLSX.utils.json_to_sheet(exportData);
             const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Data_SIPENAS");
+            XLSX.utils.book_append_sheet(wb, ws, "Data_SIPRAS_MABAR");
             XLSX.writeFile(wb, `Laporan_${schema.title.replace(/\s+/g, '_')}_${new Date().getTime()}.xlsx`);
         }
 
