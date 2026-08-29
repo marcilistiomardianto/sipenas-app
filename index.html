@@ -423,8 +423,8 @@
                 { id: 5, username: 'sekolah2', password: '123456', role: 'user', nama_sekolah: 'SD Negeri 1 Mbeliling', sekolah_id: 2 }
             ],
             schools: [
-                { id: 1, jenjang: 'SMP', npsn: '10101010', nama: 'SMP Negeri 1 Kota', tahun_berdiri: 1980, kepsek: 'Budi Santoso, M.Pd', nip: '19700101', status_kepsek: 'Definitif', alamat: 'Jl. Merdeka No 1', latitude: '-8.502', longitude: '119.882' },
-                { id: 2, jenjang: 'SD', npsn: '20202020', nama: 'SD Negeri 1 Mbeliling', tahun_berdiri: 1975, kepsek: 'Ahmad Yani, S.Pd', nip: '19800202', status_kepsek: 'Definitif', alamat: 'Kec. Mbeliling', latitude: '-8.552', longitude: '119.982' }
+                { id: 1, jenjang: 'SMP', npsn: '10101010', nama: 'SMP Negeri 1 Kota', tahun_berdiri: 1980, kepsek: 'Budi Santoso, M.Pd', nip: '19700101', status_kepsek: 'Definitif', alamat: 'Jl. Merdeka No 1', kecamatan: 'Komodo', latitude: '-8.502', longitude: '119.882' },
+                { id: 2, jenjang: 'SD', npsn: '20202020', nama: 'SD Negeri 1 Mbeliling', tahun_berdiri: 1975, kepsek: 'Ahmad Yani, S.Pd', nip: '19800202', status_kepsek: 'Definitif', alamat: 'Kec. Mbeliling', kecamatan: 'Mbeliling', latitude: '-8.552', longitude: '119.982' }
             ],
             gtk: [{ id: 1, sekolah_id: 1, periode: '2026/2027 Ganjil', nama: 'Siti Aminah', nip: '1980', nuptk: '123', jk: 'P', pendidikan: 'S1', status: 'PNS', mapel: 'Matematika' }],
             siswa: [{ id: 1, sekolah_id: 1, periode: '2026/2027 Ganjil', kelas: '7', total_l: 150, total_p: 160, total_siswa: 310 }],
@@ -481,6 +481,7 @@
                     { name: 'no_hp_kepsek', label: 'No. HP Kepala Sekolah', type: 'text' },
                     { name: 'status_kepsek', label: 'Status Kepsek', type: 'select', options: ['Definitif', 'Plt'] },
                     { name: 'alamat', label: 'Alamat', type: 'textarea' },
+                    { name: 'kecamatan', label: 'Kecamatan', type: 'select', options: ['Komodo', 'Boleng', 'Mbeliling', 'Sano Nggoang', 'Lembor', 'Lembor Selatan', 'Welak', 'Pacar', 'Macang Pacar', 'Ndoso', 'Kuwus', 'Kuwus Barat'], required: true },
                     { name: 'luas_lahan', label: 'Luas Lahan (m2)', type: 'number', min: 0 },
                     { name: 'status_lahan', label: 'Status Lahan', type: 'select', options: ['Milik Pemda', 'Sewa', 'Hibah', 'Lainnya'] },
                     { name: 'file_bukti_lahan', label: 'Bukti Kepemilikan Lahan', type: 'file', accept: '.pdf,.jpg,.png' },
@@ -1108,15 +1109,8 @@
                     const lat = parseFloat(school.latitude);
                     const lng = parseFloat(school.longitude);
                     if (!isNaN(lat) && !isNaN(lng)) {
-                        // Ekstrak Kecamatan dari Alamat (secara sederhana)
-                        let kec = '-';
-                        if (school.alamat && school.alamat.toLowerCase().includes('kec.')) {
-                            const parts = school.alamat.split(/kec\./i);
-                            if (parts.length > 1) kec = parts[1].split(',')[0].trim();
-                        } else if (school.alamat && school.alamat.toLowerCase().includes('kecamatan')) {
-                            const parts = school.alamat.split(/kecamatan/i);
-                            if (parts.length > 1) kec = parts[1].split(',')[0].trim();
-                        }
+                        // Ambil data dari kolom kecamatan yang baru
+                        let kec = school.kecamatan || '-';
                         if (kec !== '-') kecamatanSet.add(kec);
 
                         // Tentukan Status Sarpras dari data kerusakan Bangunan
